@@ -9,7 +9,7 @@ def build(pattern, element):
     
     # Generate description and tags for SOIC
     if not hasattr(pattern, 'description'):
-        pin_count = housing.get('rowCount', 0) * 2
+        pin_count = housing.get('leadCount', 0)
         pitch = housing.get('pitch', 1.27)
         bl = housing.get('bodyLength', {}).get('nom', 0)
         bw = housing.get('bodyWidth', {}).get('nom', 0) 
@@ -25,7 +25,7 @@ def build(pattern, element):
         
         pattern.description = (f"Small Outline Integrated Circuit (SOIC), {pin_count} Pin "
                              f"({pitch:.2f}mm pitch), Body {bl:.2f}mm x {bw:.2f}mm x {h:.2f}mm, "
-                             f"Lead {ll:.2f}mm x {lw:.2f}mm, IPC-7351 {density_desc} Density")
+                             f"Lead {ll:.2f}mm x {lw:.2f}mm, {density_desc} Density")
         pattern.tags = "soic ic"
     
     # Naming handled in common.dual.build

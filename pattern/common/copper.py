@@ -54,6 +54,8 @@ def dual(pattern, element, pad_params):
         numbers = list(range(1, count // 2 + 1)) + list(range(count, count // 2, -1))
     elif order == 'rows':
         numbers = list(range(1, count + 1, 2)) + list(range(2, count + 1, 2))
+    elif order == 'custom':
+        numbers = pad_params.get('custom_numbers', list(range(1, count + 1)))
     else:
         numbers = list(range(1, count + 1))
 

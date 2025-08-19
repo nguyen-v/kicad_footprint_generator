@@ -351,6 +351,26 @@ def sop(pattern, housing):
     pattern.layer('topAssembly').lineWidth(0.5).circle(dot_x, dot_y, 0.000001)
 
 
+def corner_concave(pattern, housing):
+    """Assembly outline for corner concave oscillator with pin 1 dot marker instead of chamfered edge"""
+    bw = housing['bodyWidth']['nom']
+    bl = housing['bodyLength']['nom']
+    x = bw / 2
+    y = bl / 2
+    
+    preamble(pattern, housing)
+    # Draw simple rectangle (no chamfered edge)
+    pattern.rectangle(-x, -y, x, y)
+    
+    # Add pin 1 dot marker 0.5mm from corner toward center (pin 1 is top-left with [4,1,3,2] ordering)
+    dot_offset = 0.5
+    dot_x = -x + dot_offset  # 0.5mm from left edge toward center
+    dot_y = y - dot_offset   # 0.5mm from top edge toward center (top-left corner)
+    
+    # Draw the dot (circle with small radius but thick line width for visibility)
+    pattern.layer('topAssembly').lineWidth(0.5).circle(dot_x, dot_y, 0.000001)
+
+
 def chip_preamble(pattern, housing):
     """Preamble for chip components with 90-degree clockwise rotated ${REFERENCE} text"""
     settings = pattern.settings

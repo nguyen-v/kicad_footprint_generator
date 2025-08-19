@@ -91,6 +91,7 @@ class dual:
             abbr, option = 'SOPFL', 'flatlead'
         elif housing.get('soic'):
             abbr, option = 'SOIC', 'sop'
+            housing['soic'] = True  # Ensure flag is set for assembly detection
         elif housing.get('soj'):
             abbr, option = 'SOJ', 'soj'
         elif housing.get('sol'):
@@ -113,7 +114,11 @@ class dual:
             if abbr == 'SOPFL' and housing.get('flatlead') and ('leadCount' in housing) and housing['leadCount'] in (3, 4, 5, 6):
                 # ICSOFL/TRXSOFL handled in sotfl builder; fallback SOPFL here
                 name_base = 'SOPFL'
-            pattern.name = f"{name_base}{lead_count}P{pitch_h}_{ls}X{bw}X{bh}{ll_h}X{lw_h}{settings['densityLevel']}"
+            if abbr == 'SOIC':
+                # SOIC naming: SOIC4P250_640X390X290L110X84N
+                pattern.name = f"{name_base}{lead_count}P{pitch_h}_{ls}X{bw}X{bh}L{ll_h}X{lw_h}{settings['densityLevel']}"
+            else:
+                pattern.name = f"{name_base}{lead_count}P{pitch_h}_{ls}X{bw}X{bh}{ll_h}X{lw_h}{settings['densityLevel']}"
         pad_params = calc.dual(pattern.__dict__, housing, option)
         pad_params['order'] = 'round'
         pad_params['pad'] = {
@@ -127,7 +132,11 @@ class dual:
         ss.dual(pattern, housing)
         if housing.get('polarized'):
             from . import assembly as asm
-            asm.polarized(pattern, housing)
+            if housing.get('soic'):
+                # SOIC uses SOP-style assembly (no chamfer, pin1 dot)
+                asm.sop(pattern, housing)
+            else:
+                asm.polarized(pattern, housing)
         else:
             from . import assembly as asm
             asm.body(pattern, housing)

@@ -432,48 +432,98 @@ def corner_concave(pattern: dict, housing: dict) -> dict:
     # - padSeparationLength/Width (edge-to-edge pad separation)
     # We need to derive leadLength/Width and rowSpan/columnSpan from these
     
-    def _extract_nom(param):
-        """Extract nominal value from min/nom/max dict or scalar"""
+    def _extract_values(param):
+        """Extract min/nom/max values from dict or scalar"""
         if isinstance(param, dict):
-            return param.get('nom', param.get('max', param.get('min', 0)))
-        return float(param or 0)
+            return {
+                'min': param.get('min', param.get('nom', param.get('max', 0))),
+                'nom': param.get('nom', param.get('max', param.get('min', 0))),
+                'max': param.get('max', param.get('nom', param.get('min', 0)))
+            }
+        val = float(param or 0)
+        return {'min': val, 'nom': val, 'max': val}
     
-    # Extract body dimensions
-    body_length = _extract_nom(housing.get('bodyLength', 0))
-    body_width = _extract_nom(housing.get('bodyWidth', 0))
+    # Extract body dimensions with tolerances
+    body_length = _extract_values(housing.get('bodyLength', 0))
+    body_width = _extract_values(housing.get('bodyWidth', 0))
     
-    # Handle pad separation parameters
+    # Handle pad separation parameters with proper tolerance propagation
+    print(f"DEBUG corner_concave: input housing keys: {housing.keys()}")
+    print(f"DEBUG corner_concave: body_length = {body_length}")
+    print(f"DEBUG corner_concave: body_width = {body_width}")
+    
+    # Fixed mapping: padSeparationLength -> rowSpan, padSeparationWidth -> columnSpan
     if 'padSeparationLength' in housing:
-        pad_sep_length = _extract_nom(housing['padSeparationLength'])
-        # Estimate lead length (for corner concave, leads are typically small)
-        # Lead length ≈ (body_length - pad_separation) / 2
-        est_lead_length = max(0.1, (body_length - pad_sep_length) / 2)
+        pad_sep_length = _extract_values(housing['padSeparationLength'])
+        print(f"DEBUG corner_concave: padSeparationLength = {pad_sep_length}")
         
-        # Convert edge-to-edge separation to center-to-center (rowSpan)
-        # rowSpan = padSeparation + leadLength (assuming symmetric pads)
-        housing.setdefault('rowSpan', {'nom': pad_sep_length + est_lead_length})
-        housing.setdefault('leadLength', {'nom': est_lead_length, 'min': est_lead_length * 0.8, 'max': est_lead_length * 1.2})
+        # Lead length = (body_length - pad_separation) / 2
+        # Proper tolerance propagation for lead dimension
+        lead_length_min = max(0.05, (body_length['min'] - pad_sep_length['max']) / 2)
+        lead_length_nom = max(0.05, (body_length['nom'] - pad_sep_length['nom']) / 2)
+        lead_length_max = max(0.05, (body_length['max'] - pad_sep_length['min']) / 2)
+        
+        # Lead span (center-to-center) = (body_length + pad_separation) / 2
+        # This is the distance between pad centers
+        row_span_min = (body_length['min'] + pad_sep_length['min']) / 2
+        row_span_nom = (body_length['nom'] + pad_sep_length['nom']) / 2
+        row_span_max = (body_length['max'] + pad_sep_length['max']) / 2
+        
+        print(f"DEBUG corner_concave: calculated rowSpan = min:{row_span_min}, nom:{row_span_nom}, max:{row_span_max}")
+        print(f"DEBUG corner_concave: calculated leadLength = min:{lead_length_min}, nom:{lead_length_nom}, max:{lead_length_max}")
+        
+        housing.setdefault('rowSpan', {
+            'min': row_span_min,
+            'nom': row_span_nom,
+            'max': row_span_max
+        })
+        housing.setdefault('leadLength', {
+            'min': lead_length_min, 
+            'nom': lead_length_nom, 
+            'max': lead_length_max
+        })
     
     if 'padSeparationWidth' in housing:
-        pad_sep_width = _extract_nom(housing['padSeparationWidth'])
-        # Estimate lead width similarly
-        est_lead_width = max(0.1, (body_width - pad_sep_width) / 2)
+        pad_sep_width = _extract_values(housing['padSeparationWidth'])
+        print(f"DEBUG corner_concave: padSeparationWidth = {pad_sep_width}")
         
-        # Convert edge-to-edge separation to center-to-center (columnSpan)
-        housing.setdefault('columnSpan', {'nom': pad_sep_width + est_lead_width})
-        housing.setdefault('leadWidth', {'nom': est_lead_width, 'min': est_lead_width * 0.8, 'max': est_lead_width * 1.2})
+        # Lead width = (body_width - pad_separation) / 2  
+        # Proper tolerance propagation for lead dimension
+        lead_width_min = max(0.05, (body_width['min'] - pad_sep_width['max']) / 2)
+        lead_width_nom = max(0.05, (body_width['nom'] - pad_sep_width['nom']) / 2)
+        lead_width_max = max(0.05, (body_width['max'] - pad_sep_width['min']) / 2)
+        
+        # Lead span (center-to-center) = (body_width + pad_separation) / 2
+        # This is the distance between pad centers  
+        col_span_min = (body_width['min'] + pad_sep_width['min']) / 2
+        col_span_nom = (body_width['nom'] + pad_sep_width['nom']) / 2
+        col_span_max = (body_width['max'] + pad_sep_width['max']) / 2
+        
+        print(f"DEBUG corner_concave: calculated columnSpan = min:{col_span_min}, nom:{col_span_nom}, max:{col_span_max}")
+        print(f"DEBUG corner_concave: calculated leadWidth = min:{lead_width_min}, nom:{lead_width_nom}, max:{lead_width_max}")
+        
+        housing.setdefault('columnSpan', {
+            'min': col_span_min,
+            'nom': col_span_nom,
+            'max': col_span_max
+        })
+        housing.setdefault('leadWidth', {
+            'min': lead_width_min,
+            'nom': lead_width_nom, 
+            'max': lead_width_max
+        })
     
     # If no pad separation provided, estimate from body dimensions (fallback)
-    if 'rowSpan' not in housing and body_length > 0:
+    if 'rowSpan' not in housing and body_length['nom'] > 0:
         # Assume leads take up ~20% of body length each, separation is ~60%
-        est_lead_length = body_length * 0.2
-        est_pad_sep = body_length * 0.6
+        est_lead_length = body_length['nom'] * 0.2
+        est_pad_sep = body_length['nom'] * 0.6
         housing.setdefault('rowSpan', {'nom': est_pad_sep + est_lead_length})
         housing.setdefault('leadLength', {'nom': est_lead_length, 'min': est_lead_length * 0.8, 'max': est_lead_length * 1.2})
     
-    if 'columnSpan' not in housing and body_width > 0:
-        est_lead_width = body_width * 0.2
-        est_pad_sep = body_width * 0.6
+    if 'columnSpan' not in housing and body_width['nom'] > 0:
+        est_lead_width = body_width['nom'] * 0.2
+        est_pad_sep = body_width['nom'] * 0.6
         housing.setdefault('columnSpan', {'nom': est_pad_sep + est_lead_width})
         housing.setdefault('leadWidth', {'nom': est_lead_width, 'min': est_lead_width * 0.8, 'max': est_lead_width * 1.2})
     
@@ -484,15 +534,20 @@ def corner_concave(pattern: dict, housing: dict) -> dict:
     in_periph = {'M': 0.00, 'N': 0.00, 'L': 0.00}[settings['densityLevel']]
     
     params = _params(pattern, housing)
+    print(f"DEBUG corner_concave: _params returned = {params}")
+    print(f"DEBUG corner_concave: housing rowSpan = {housing.get('rowSpan')}")
+    print(f"DEBUG corner_concave: housing columnSpan = {housing.get('columnSpan')}")
+    
     # Round-off factor: round off to the nearest two place decimal
     pattern['sizeRoundoff'] = 0.01
     pad = {
-        'width': params['Tmax'] + out_periph + in_periph,
-        'height': params['Wmax'] + out_periph + in_periph,
-        'distance1': housing['rowSpan']['nom'] - params['Tmax'] + out_periph / 2 - in_periph / 2,
-        'distance2': housing['columnSpan']['nom'] - params['Wmax'] + out_periph / 2 - in_periph / 2,
+        'width': params['Wmax'] + out_periph + in_periph,
+        'height': params['Tmax'] + out_periph + in_periph,
+        'distance2': housing['rowSpan']['nom'] + out_periph / 2 - in_periph / 2,
+        'distance1': housing['columnSpan']['nom'] + out_periph / 2 - in_periph / 2,
         'courtyard': {'M': 0.40, 'N': 0.20, 'L': 0.10}[settings['densityLevel']],
     }
+    print(f"DEBUG corner_concave: calculated pad = {pad}")
     pad = _choose_preferred(pad, pattern, housing)
     lead_to_pad1 = (pad['distance1'] + pad['width'] - housing['rowSpan']['nom']) / 2
     lead_to_pad2 = (pad['distance2'] + pad['height'] - housing['columnSpan']['nom']) / 2

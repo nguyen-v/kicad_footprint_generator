@@ -18,9 +18,20 @@ def build(pattern, element):
         bw = int(round(housing['bodyWidth']['nom'] * 100))
         bh = int(round(housing['height']['max'] * 100))
         
-        # Get lead dimensions (use nominal values)
-        ll = housing.get('leadLength', {}).get('nom', housing.get('leadLength', {}).get('max', housing.get('leadLength', {}).get('min', 0)))
-        lw = housing.get('leadWidth', {}).get('nom', housing.get('leadWidth', {}).get('max', housing.get('leadWidth', {}).get('min', 0)))
+        # Get lead dimensions (use nominal values, compute from min/max if not available)
+        def get_nominal(param_dict):
+            if isinstance(param_dict, dict):
+                if 'nom' in param_dict:
+                    return param_dict['nom']
+                elif 'min' in param_dict and 'max' in param_dict:
+                    # Compute nominal as average of min/max
+                    return (param_dict['min'] + param_dict['max']) / 2
+                else:
+                    return param_dict.get('max', param_dict.get('min', 0))
+            return param_dict or 0
+        
+        ll = get_nominal(housing.get('leadLength', {}))
+        lw = get_nominal(housing.get('leadWidth', {}))
         
         def _nom(v):
             if isinstance(v, dict):

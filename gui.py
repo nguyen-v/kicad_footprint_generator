@@ -125,7 +125,6 @@ class App(tk.Tk):
             return [
                 ('Variant', 'variant', 'corner-concave'),
                 ('Lead count', 'leadCount', 4),
-                ('Pitch', 'pitch', 0.5),
                 # Body dimensions (standard datasheet parameters)
                 ('Body width nom', 'bodyWidth.nom', 3.2),
                 ('Body width min', 'bodyWidth.min', 3.1),
@@ -135,12 +134,12 @@ class App(tk.Tk):
                 ('Body length max', 'bodyLength.max', 2.6),
                 ('Height max', 'height.max', 1.2),
                 # Pad separation (edge-to-edge distance between pads, as in datasheets)
-                ('Pad separation length nom', 'padSeparationLength.nom', 1.8),
-                ('Pad separation length min', 'padSeparationLength.min', 1.7),
-                ('Pad separation length max', 'padSeparationLength.max', 1.9),
                 ('Pad separation width nom', 'padSeparationWidth.nom', 2.2),
                 ('Pad separation width min', 'padSeparationWidth.min', 2.1),
                 ('Pad separation width max', 'padSeparationWidth.max', 2.3),
+                ('Pad separation length nom', 'padSeparationLength.nom', 1.8),
+                ('Pad separation length min', 'padSeparationLength.min', 1.7),
+                ('Pad separation length max', 'padSeparationLength.max', 1.9),
             ]
         if kind == 'pak':
             # DPAK-specific schema: body width/length max only, tab ledge min only
@@ -211,7 +210,29 @@ class App(tk.Tk):
                 ('Thermal pad length min', 'tabLength.min', 0.0),
                 ('Thermal pad length max', 'tabLength.max', 0.0),
             ]
-        elif kind in ('soic','sopfl','sotfl','soj','sol','sot143','sot89_5'):
+        elif kind == 'soic':
+            # SOIC-specific defaults
+            return [
+                ('Lead count', 'leadCount', 4),
+                ('Pitch', 'pitch', 2.5),
+                ('Lead span nom', 'leadSpan.nom', 6.4),
+                ('Lead span min', 'leadSpan.min', 6.1),
+                ('Lead span max', 'leadSpan.max', 6.7),
+                ('Lead length nom', 'leadLength.nom', 0.79),  # Nominal = (0.48 + 1.1) / 2
+                ('Lead length min', 'leadLength.min', 0.48),
+                ('Lead length max', 'leadLength.max', 1.1),
+                ('Lead width nom', 'leadWidth.nom', 0.635),  # Nominal = (0.43 + 0.84) / 2
+                ('Lead width min', 'leadWidth.min', 0.43),
+                ('Lead width max', 'leadWidth.max', 0.84),
+                ('Body width nom', 'bodyWidth.nom', 3.9),
+                ('Body width min', 'bodyWidth.min', 3.6),
+                ('Body width max', 'bodyWidth.max', 4.2),
+                ('Body length nom', 'bodyLength.nom', 4.725),
+                ('Body length min', 'bodyLength.min', 4.5),
+                ('Body length max', 'bodyLength.max', 4.95),
+                ('Height max', 'height.max', 2.9),
+            ]
+        elif kind in ('sopfl','sotfl','soj','sol','sot143','sot89_5'):
             base = [
                 # For SOTFL allow selecting component type (IC or Transistor)
                 *([('Component type', 'componentType', 'ICSOFL')] if kind == 'sotfl' else []),

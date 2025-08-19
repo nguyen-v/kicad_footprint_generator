@@ -100,13 +100,16 @@ def dual(pattern, housing):
     yp = (yf if xp < x1 else y1) - 1.5 * lw
     preamble(pattern, housing)
     
-    if housing.get('son') or housing.get('sot23') or housing.get('sop'):
-        # SON/SOT-23/SOP-specific: only draw horizontal lines (top and bottom)
-        # Lines should stop at body edges, not extend beyond
+    if housing.get('son') or housing.get('sot23') or housing.get('sop') or housing.get('soic'):
+        # SON/SOT-23/SOP/SOIC-specific: only draw horizontal lines (top and bottom)
+        # Lines should be close to body edges, not based on pad positions
         body_left = -w / 2
         body_right = w / 2
-        pattern.line(body_left, y1, body_right, y1)  # bottom horizontal line
-        pattern.line(body_left, y2, body_right, y2)  # top horizontal line
+        # Use body-relative positioning with small offset (like SOP)
+        body_y1 = -l / 2 - lw / 2  # bottom line (body bottom edge - line width)
+        body_y2 = l / 2 + lw / 2   # top line (body top edge + line width)
+        pattern.line(body_left, body_y1, body_right, body_y1)  # bottom horizontal line
+        pattern.line(body_left, body_y2, body_right, body_y2)  # top horizontal line
         
         # Add pin 1 indicator similar to QFP
         if housing.get('polarized'):
@@ -121,7 +124,7 @@ def dual(pattern, housing):
             dot1_y = pad1_y - pad1_size_y/2 - 0.25 - silk_to_pad_clearance
             
             # X position: align with the top-left pad x position
-            if housing.get('sot23') or housing.get('sop'):
+            if housing.get('sot23') or housing.get('sop') or housing.get('soic'):
                 dot1_x = pad1_x  # Aligned with the first pad's X position
             else:
                 dot1_x = body_left - 0.25 - silk_to_pad_clearance
@@ -131,9 +134,94 @@ def dual(pattern, housing):
         # Standard dual: draw full rectangle
         pattern.rectangle(x1, y1, x2, y2)
     
-    if housing.get('polarized') and not housing.get('son') and not housing.get('sot23') and not housing.get('sop'):
+    if housing.get('polarized') and not housing.get('son') and not housing.get('sot23') and not housing.get('sop') and not housing.get('soic'):
         pattern.attribute('value', {'text': pattern.name, 'x': 0, 'y': 0})
         pattern.circle(xp, yp, 0)  # polarityMark abstraction skipped; use small dot if needed
+
+
+def corner_concave(pattern, housing):
+    """Silkscreen for corner concave oscillator: no rectangle, lines between pads on four sides, SON-style dot"""
+    s = pattern.settings
+    lw = s['lineWidth']['silkscreen']
+    w = housing['bodyWidth']['nom']
+    l = housing['bodyLength']['nom']
+    
+    silk_pad_clearance = s['clearance']['silkToPad']
+    silk_line_width = s['lineWidth']['silkscreen']
+    silk_pad_offset = silk_pad_clearance + silk_line_width / 2
+    
+    # For corner concave oscillator: draw lines between pads on all four sides
+    # Get all 4 pads (corner concave has exactly 4 pads)
+    pads = list(pattern.pads.values())
+    
+    if len(pads) >= 4:
+        # Find pads by position (assuming standard corner concave layout)
+        # Pad 1: bottom-left, Pad 3: top-left, Pad 4: top-right, Pad 2: bottom-right
+        pad_positions = {}
+        for pad in pads:
+            if pad.x < 0 and pad.y < 0:  # bottom-left
+                pad_positions['bottom_left'] = pad
+            elif pad.x < 0 and pad.y > 0:  # top-left  
+                pad_positions['top_left'] = pad
+            elif pad.x > 0 and pad.y > 0:  # top-right
+                pad_positions['top_right'] = pad
+            elif pad.x > 0 and pad.y < 0:  # bottom-right
+                pad_positions['bottom_right'] = pad
+        
+        preamble(pattern, housing)
+        
+        # Draw horizontal lines (top and bottom) - positioned outside body edges like QFP/QFN
+        body_top = l / 2 + lw / 2
+        body_bottom = -l / 2 - lw / 2
+        
+        # Top line: outside body top edge
+        if 'top_left' in pad_positions and 'top_right' in pad_positions:
+            left_pad = pad_positions['top_left']
+            right_pad = pad_positions['top_right']
+            line_start_x = left_pad.x + left_pad.width/2 + silk_pad_offset
+            line_end_x = right_pad.x - right_pad.width/2 - silk_pad_offset
+            if line_end_x > line_start_x:
+                pattern.line(line_start_x, body_top, line_end_x, body_top)
+        
+        # Bottom line: outside body bottom edge
+        if 'bottom_left' in pad_positions and 'bottom_right' in pad_positions:
+            left_pad = pad_positions['bottom_left']
+            right_pad = pad_positions['bottom_right']
+            line_start_x = left_pad.x + left_pad.width/2 + silk_pad_offset
+            line_end_x = right_pad.x - right_pad.width/2 - silk_pad_offset
+            if line_end_x > line_start_x:
+                pattern.line(line_start_x, body_bottom, line_end_x, body_bottom)
+        
+        # Draw vertical lines (left and right) - positioned outside body edges like QFP/QFN
+        body_left = -w / 2 - lw / 2
+        body_right = w / 2 + lw / 2
+        
+        # Left line: outside body left edge
+        if 'bottom_left' in pad_positions and 'top_left' in pad_positions:
+            bottom_pad = pad_positions['bottom_left']
+            top_pad = pad_positions['top_left']
+            line_start_y = bottom_pad.y + bottom_pad.height/2 + silk_pad_offset
+            line_end_y = top_pad.y - top_pad.height/2 - silk_pad_offset
+            if line_end_y > line_start_y:
+                pattern.line(body_left, line_start_y, body_left, line_end_y)
+        
+        # Right line: outside body right edge
+        if 'bottom_right' in pad_positions and 'top_right' in pad_positions:
+            bottom_pad = pad_positions['bottom_right']
+            top_pad = pad_positions['top_right']
+            line_start_y = bottom_pad.y + bottom_pad.height/2 + silk_pad_offset
+            line_end_y = top_pad.y - top_pad.height/2 - silk_pad_offset
+            if line_end_y > line_start_y:
+                pattern.line(body_right, line_start_y, body_right, line_end_y)
+        
+        # Add pin 1 dot indicator (1mm away from pad)
+        if housing.get('polarized') and 'top_left' in pad_positions:
+            pad1 = pad_positions['top_left']  # Pin 1 is top-left (with [4,1,3,2] ordering)
+            # Position 1mm away from pad edge
+            dot1_x = pad1.x - pad1.width/2 - 0.5  # 1mm left from pad edge
+            dot1_y = pad1.y  # Aligned with pad 1 Y position
+            # Circle with same dimensions as other packages
+            pattern.layer('topSilkscreen').lineWidth(0.5).circle(dot1_x, dot1_y, 0.000001)
 
 
 def grid_array(pattern, housing):
