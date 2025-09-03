@@ -286,15 +286,44 @@ def _nolead(pattern: dict, housing: dict) -> dict:
         # Round-off and courtyard per table
         pattern['sizeRoundoff'] = 0.05
     else:
-        # Table 3-16 for standard SON and QFN (no pullback)
-        # Updated values per user table - QFN and SON use same parameters
-        toe = {'M': 0.30, 'N': 0.20, 'L': 0.10}[settings['densityLevel']]
+        # DFN/SON/QFN without pullback use periphery per body length thresholds
+        # Per user table: periphery A and courtyard depend on body length and density
+        bl_nom = 0.0
+        try:
+            bl_nom = float(housing.get('bodyLength', {}).get('nom', 0.0))
+        except Exception:
+            bl_nom = 0.0
+
+        dl = settings['densityLevel']
+        # Periphery A
+        if dl == 'M':
+            periphery = 0.05 if bl_nom >= 1.60 else 0.00
+        elif dl == 'N':
+            periphery = 0.00
+        else:  # 'L'
+            periphery = 0.00
+
+        toe = periphery
         heel = 0.0
-        side = 0.0
+        side = periphery
     params = _params(pattern, housing)
     params['Jt'] = pattern.get('toe', toe)
     params['Jh'] = pattern.get('heel', heel)
     params['Js'] = pattern.get('side', side)
+    # Courtyard per table depends on body length
+    bl_nom = 0.0
+    try:
+        bl_nom = float(housing.get('bodyLength', {}).get('nom', 0.0))
+    except Exception:
+        bl_nom = 0.0
+    dl = settings['densityLevel']
+    if dl == 'M':
+        courtyard = 0.40 if bl_nom >= 1.60 else 0.20
+    elif dl == 'N':
+        courtyard = 0.20 if bl_nom >= 1.60 else 0.15
+    else:  # 'L'
+        courtyard = 0.10
+    params['courtyard'] = courtyard
     return params
 
 
@@ -830,11 +859,37 @@ def two_pin(pattern: dict, housing: dict, option: str = 'chip') -> dict:
         # Round to 0.05 mm per table note
         pattern['sizeRoundoff'] = 0.05
     elif option == 'molded':
-        # IPC-7351 Table 3-13 Inward Flat Ribbon L-Leads (Molded)
-        toes = {'M': 0.25, 'N': 0.15, 'L': 0.07}
-        heels = {'M': 0.80, 'N': 0.50, 'L': 0.20}
-        sides = {'M': 0.01, 'N': -0.05, 'L': -0.10}
-        courtyard = {'M': 0.50, 'N': 0.25, 'L': 0.10}[settings['densityLevel']]
+        # IPC-7351 height-based values for molded components
+        height = housing.get('height', {}).get('max', 0)
+        dl = settings['densityLevel']
+        
+        # Height-based toe/heel/side/courtyard values
+        if height > 4.20:
+            toes = {'L': 0.15, 'N': 0.20, 'M': 0.25}
+            heels = {'L': 0.50, 'N': 0.60, 'M': 0.70}
+            sides = {'L': 0.00, 'N': 0.00, 'M': 0.05}
+            courtyard = {'L': 0.10, 'N': 0.20, 'M': 0.40}[dl]
+        elif height > 3.20:
+            toes = {'L': 0.10, 'N': 0.15, 'M': 0.20}
+            heels = {'L': 0.45, 'N': 0.55, 'M': 0.65}
+            sides = {'L': 0.00, 'N': 0.00, 'M': 0.05}
+            courtyard = {'L': 0.10, 'N': 0.20, 'M': 0.40}[dl]
+        elif height > 2.20:
+            toes = {'L': 0.05, 'N': 0.10, 'M': 0.15}
+            heels = {'L': 0.40, 'N': 0.50, 'M': 0.60}
+            sides = {'L': 0.00, 'N': 0.00, 'M': 0.05}
+            courtyard = {'L': 0.10, 'N': 0.20, 'M': 0.40}[dl]
+        elif height > 1.20:
+            toes = {'L': 0.00, 'N': 0.05, 'M': 0.10}
+            heels = {'L': 0.35, 'N': 0.45, 'M': 0.55}
+            sides = {'L': 0.00, 'N': 0.00, 'M': 0.05}
+            courtyard = {'L': 0.10, 'N': 0.20, 'M': 0.40}[dl]
+        else:  # height <= 1.20
+            toes = {'L': 0.00, 'N': 0.00, 'M': 0.05}
+            heels = {'L': 0.30, 'N': 0.40, 'M': 0.50}
+            sides = {'L': 0.00, 'N': 0.00, 'M': 0.05}
+            courtyard = {'L': 0.10, 'N': 0.20, 'M': 0.40}[dl]
+        
         pattern['sizeRoundoff'] = 0.05
     elif option == 'radial':
         pad = through_hole(pattern, housing)
@@ -849,8 +904,8 @@ def two_pin(pattern: dict, housing: dict, option: str = 'chip') -> dict:
     elif option == 'sodfl':
         toes = {'M': 0.3, 'N': 0.2, 'L': 0.1}
         heels = {'M': 0.0, 'N': 0.0, 'L': 0.0}
-        sides = {'M': 0.05, 'N': 0.0, 'L': -0.05}
-        courtyard = None
+        sides = {'M': 0.05, 'N': 0.0, 'L': 0.0}
+        courtyard = {'M': 0.4, 'N': 0.2, 'L': 0.1}[settings['densityLevel']]
     else:
         raise ValueError('Unsupported two-pin option')
 

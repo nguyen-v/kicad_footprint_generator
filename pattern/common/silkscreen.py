@@ -506,7 +506,275 @@ def quad(pattern, housing):
         pattern.layer('topSilkscreen').lineWidth(0.5).circle(dot1_x, dot1_y, 0.000001)
 
 
+def sodfl_preamble(pattern, housing):
+    """Preamble for SODFL components with proper refDes positioning"""
+    line_width = pattern.settings['lineWidth']['silkscreen']
+    
+    # Calculate text position using real pad positions (similar to chip)
+    if pattern.pads:
+        pad_extent = 0
+        for pad in pattern.pads.values():
+            # Calculate the farthest point of each pad from center
+            # For SODFL (horizontal layout), use Y extent
+            pad_extent = max(pad_extent, abs(pad.y) + pad.height / 2)
+        
+        if pad_extent == 0:
+            pad_extent = 0.7  # fallback if no pads found
+        
+        # Use SODFL body dimensions for comparison
+        body_y = housing['bodyWidth']['nom'] / 2  # For SODFL, body width becomes Y extent
+        courtyard = pattern.settings.get('clearance', {}).get('courtyard', 0.25)
+        text_y = -(max(body_y, pad_extent) + 1.25)
+    else:
+        text_y = -1.5  # fallback
+    
+    pattern.layer('topSilkscreen').lineWidth(line_width).attribute(
+        'refDes',
+        {
+            'x': 0,
+            'y': text_y,
+            'halign': 'center',
+            'valign': 'center',
+        },
+    )
+    if 'silkscreen' in housing and housing['silkscreen']:
+        # custom path support omitted for brevity
+        pass
+    return pattern
+
+
+def sodfl(pattern, housing):
+    """SODFL-specific silkscreen with U-shaped outline encircling body and larger polarity dot"""
+    s = pattern.settings
+    lw = s['lineWidth']['silkscreen']
+    silk_pad_clearance = s['clearance']['silkToPad']
+    
+    # Get body dimensions (using chip coordinates: swapped x/y due to 90° rotation)
+    bw = housing['bodyWidth']['nom']  # This becomes Y extent
+    bl = housing['bodyLength']['nom']  # This becomes X extent
+    
+    # Since SODFL is rotated like chip: x = bl/2, y = bw/2
+    body_x = bl / 2  # Use body length for X extent
+    body_y = bw / 2  # Use body width for Y extent
+    
+    # Body outline coordinates (with line width offset)
+    body_left = -body_x - lw / 2
+    body_right = body_x + lw / 2
+    body_top = body_y + lw / 2
+    body_bottom = -body_y - lw / 2
+    
+    # Get pad information
+    pads = list(pattern.pads.values())
+    if len(pads) >= 2:
+        pad1 = pads[0]  # Left pad
+        pad2 = pads[1]  # Right pad
+        
+        # Calculate pad clearance boundaries (0.2mm clearance from pad edges)
+        pad_clearance = 0.2  # As requested
+        pad1_right = pad1.x + pad1.width / 2 + pad_clearance
+        pad2_left = pad2.x - pad2.width / 2 - pad_clearance
+        pad_top = max(abs(pad1.y) + pad1.height / 2, abs(pad2.y) + pad2.height / 2) + pad_clearance
+        pad_bottom = -pad_top
+        
+        # Use SODFL-specific preamble for text positioning
+        sodfl_preamble(pattern, housing)
+        
+        # Draw U-shaped silkscreen: top U and bottom U (not left and right)
+        # Account for line width to maintain proper clearance to pads
+        
+        # Top U (encircling top of body) - shaped like ∩ 
+        # Vertical lines need to stop before reaching pad clearance + line width/2
+        top_vertical_end = pad_top + lw / 2  # Account for line thickness
+        pattern.line(body_left, body_top, body_left, top_vertical_end)   # left vertical
+        pattern.line(body_left, body_top, body_right, body_top)          # top horizontal  
+        pattern.line(body_right, body_top, body_right, top_vertical_end) # right vertical
+        
+        # Bottom U (encircling bottom of body) - shaped like ∪
+        # Vertical lines need to stop before reaching pad clearance + line width/2
+        bottom_vertical_end = pad_bottom - lw / 2  # Account for line thickness
+        pattern.line(body_left, body_bottom, body_left, bottom_vertical_end)  # left vertical
+        pattern.line(body_left, body_bottom, body_right, body_bottom)         # bottom horizontal
+        pattern.line(body_right, body_bottom, body_right, bottom_vertical_end) # right vertical
+        
+        # Add larger polarity dot (0.5mm as requested, moved 0.1mm more to the left)
+        if housing.get('polarized'):
+            # Position relative to left pad (pin 1), moved 0.1mm more to the left
+            dot_x = pad1.x - pad1.width / 2 - silk_pad_clearance - 0.6  # Original offset + 0.1mm more
+            dot_y = 0  # Centered vertically
+            
+            # Draw larger dot with 0.5mm line width (same as SON)
+            pattern.layer('topSilkscreen').lineWidth(0.5).circle(dot_x, dot_y, 0.000001)
+    else:
+        # Fallback: use SODFL preamble for text positioning
+        sodfl_preamble(pattern, housing)
+
+
+def molded_preamble(pattern, housing):
+    """Preamble for molded components with proper refDes positioning"""
+    line_width = pattern.settings['lineWidth']['silkscreen']
+    
+    # Calculate text position using real pad positions (similar to SODFL)
+    if pattern.pads:
+        pad_extent = 0
+        for pad in pattern.pads.values():
+            # Calculate the farthest point of each pad from center
+            # For molded (horizontal layout), use Y extent
+            pad_extent = max(pad_extent, abs(pad.y) + pad.height / 2)
+        
+        if pad_extent == 0:
+            pad_extent = 0.7  # fallback if no pads found
+        
+        # Use molded body dimensions for comparison
+        body_y = housing['bodyWidth']['nom'] / 2  # For molded, body width becomes Y extent
+        courtyard = pattern.settings.get('clearance', {}).get('courtyard', 0.25)
+        text_y = -(max(body_y, pad_extent) + 1.25)
+    else:
+        text_y = -1.5  # fallback
+    
+    pattern.layer('topSilkscreen').lineWidth(line_width).attribute(
+        'refDes',
+        {
+            'x': 0,
+            'y': text_y,
+            'halign': 'center',
+            'valign': 'center',
+        },
+    )
+    if 'silkscreen' in housing and housing['silkscreen']:
+        # custom path support omitted for brevity
+        pass
+    return pattern
+
+
+def molded(pattern, housing):
+    """Molded-specific silkscreen with U-shaped outline encircling body and larger polarity dot (same as SODFL)"""
+    s = pattern.settings
+    lw = s['lineWidth']['silkscreen']
+    silk_pad_clearance = s['clearance']['silkToPad']
+    
+    # Get body dimensions (using chip coordinates: swapped x/y due to 90° rotation)
+    bw = housing['bodyWidth']['nom']  # This becomes Y extent
+    bl = housing['bodyLength']['nom']  # This becomes X extent
+    
+    # Since molded is rotated like chip: x = bl/2, y = bw/2
+    body_x = bl / 2  # Use body length for X extent
+    body_y = bw / 2  # Use body width for Y extent
+    
+    # Body outline coordinates (with line width offset)
+    body_left = -body_x - lw / 2
+    body_right = body_x + lw / 2
+    body_top = body_y + lw / 2
+    body_bottom = -body_y - lw / 2
+    
+    # Get pad information
+    pads = list(pattern.pads.values())
+    if len(pads) >= 2:
+        pad1 = pads[0]  # Left pad
+        pad2 = pads[1]  # Right pad
+        
+        # Calculate pad clearance boundaries (0.2mm clearance from pad edges)
+        pad_clearance = 0.2  # As requested
+        pad1_right = pad1.x + pad1.width / 2 + pad_clearance
+        pad2_left = pad2.x - pad2.width / 2 - pad_clearance
+        pad_top = max(abs(pad1.y) + pad1.height / 2, abs(pad2.y) + pad2.height / 2) + pad_clearance
+        pad_bottom = -pad_top
+        
+        # Use molded-specific preamble for text positioning
+        molded_preamble(pattern, housing)
+        
+        # Draw U-shaped silkscreen: top U and bottom U (same as SODFL)
+        # Account for line width to maintain proper clearance to pads
+        
+        # Top U (encircling top of body) - shaped like ∩ 
+        # Vertical lines need to stop before reaching pad clearance + line width/2
+        top_vertical_end = pad_top + lw / 2  # Account for line thickness
+        pattern.line(body_left, body_top, body_left, top_vertical_end)   # left vertical
+        pattern.line(body_left, body_top, body_right, body_top)          # top horizontal  
+        pattern.line(body_right, body_top, body_right, top_vertical_end) # right vertical
+        
+        # Bottom U (encircling bottom of body) - shaped like ∪
+        # Vertical lines need to stop before reaching pad clearance + line width/2
+        bottom_vertical_end = pad_bottom - lw / 2  # Account for line thickness
+        pattern.line(body_left, body_bottom, body_left, bottom_vertical_end)  # left vertical
+        pattern.line(body_left, body_bottom, body_right, body_bottom)         # bottom horizontal
+        pattern.line(body_right, body_bottom, body_right, bottom_vertical_end) # right vertical
+        
+        # Add larger polarity dot (0.5mm as requested, moved 0.1mm more to the left)
+        if housing.get('polarized'):
+            # Position relative to left pad (pin 1), moved 0.1mm more to the left
+            dot_x = pad1.x - pad1.width / 2 - silk_pad_clearance - 0.6  # Original offset + 0.1mm more
+            dot_y = 0  # Centered vertically
+            
+            # Draw larger dot with 0.5mm line width (same as SON)
+            pattern.layer('topSilkscreen').lineWidth(0.5).circle(dot_x, dot_y, 0.000001)
+    else:
+        # Fallback: use molded preamble for text positioning
+        molded_preamble(pattern, housing)
+
+
+def dfn_molded_style(pattern, housing):
+    """DFN-specific silkscreen using molded-style U-shapes (top and bottom), works for 2/3/4 pins.
+    Computes pad extents from all pads and does not assume pads[0] is left and pads[1] is right."""
+    s = pattern.settings
+    lw = s['lineWidth']['silkscreen']
+    silk_pad_clearance = s['clearance']['silkToPad']
+
+    # Body dimensions (DFN horizontal layout similar to molded: x = bl/2, y = bw/2)
+    bw = housing['bodyWidth']['nom']
+    bl = housing['bodyLength']['nom']
+    body_x = bl / 2
+    body_y = bw / 2
+
+    # Body outline coordinates (with line width offset)
+    body_left = -body_x - lw / 2
+    body_right = body_x + lw / 2
+    body_top = body_y + lw / 2
+    body_bottom = -body_y - lw / 2
+
+    # Determine vertical endpoints from pad extents across all pads
+    pads = list(pattern.pads.values())
+    if pads:
+        pad_clearance = 0.2
+        pad_top = max(abs(p.y) + p.height / 2 for p in pads) + pad_clearance
+        pad_bottom = -pad_top
+
+        # Use molded preamble for text positioning (same rotation/placement)
+        molded_preamble(pattern, housing)
+
+        # Top U (∩)
+        top_vertical_end = pad_top + lw / 2
+        pattern.line(body_left, body_top, body_left, top_vertical_end)
+        pattern.line(body_left, body_top, body_right, body_top)
+        pattern.line(body_right, body_top, body_right, top_vertical_end)
+
+        # Bottom U (∪)
+        bottom_vertical_end = pad_bottom - lw / 2
+        pattern.line(body_left, body_bottom, body_left, bottom_vertical_end)
+        pattern.line(body_left, body_bottom, body_right, body_bottom)
+        pattern.line(body_right, body_bottom, body_right, bottom_vertical_end)
+
+        # Polarity dot near the leftmost pad if polarized
+        if housing.get('polarized'):
+            leftmost = min(pads, key=lambda p: p.x)
+            # Place dot center 0.6mm from pad edge toward left (closer than previous 0.8mm)
+            dot_x = leftmost.x - leftmost.width / 2 - 0.6
+            dot_y = 0
+            pattern.layer('topSilkscreen').lineWidth(0.5).circle(dot_x, dot_y, 0.000001)
+    else:
+        # Fallback
+        molded_preamble(pattern, housing)
+
+
 def two_pin(pattern, housing):
+    # Use SODFL-specific silkscreen for SODFL components
+    if housing.get('sodfl'):
+        sodfl(pattern, housing)
+        return  # Early return since sodfl() handles everything
+    # Use molded-specific silkscreen for molded components
+    elif housing.get('molded'):
+        molded(pattern, housing)
+        return  # Early return since molded() handles everything
+    
     s = pattern.settings
     lw = s['lineWidth']['silkscreen']
     first_pad = list(pattern.pads.values())[0]

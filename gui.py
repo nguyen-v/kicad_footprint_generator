@@ -102,7 +102,8 @@ class App(tk.Tk):
             self._dfn_lead_count = int(float(val))
         except Exception:
             self._dfn_lead_count = 2
-        self._render_fields()
+        # Do not re-render fields; just refresh name preview
+        self._update_name_preview()
 
     def _clear_fields(self) -> None:
         for lbl, ent in self._field_rows:
@@ -268,9 +269,13 @@ class App(tk.Tk):
             try:
                 if 'leadCount' in self._vars:
                     val = self._vars['leadCount'].get()
-                    current_leads = int(val) if str(val).isdigit() else current_leads
+                    if str(val).isdigit():
+                        current_leads = int(val)
+                        # Update the instance variable to keep it in sync
+                        self._dfn_lead_count = current_leads
             except Exception:
                 pass
+
             # Set SON-specific defaults
             if kind == 'son':
                 base = [
@@ -290,14 +295,25 @@ class App(tk.Tk):
                     ('Height max', 'height.max', 0.8),
                 ]
             else:
-                base = [
+                # DFN defaults
+                base = []
+                if kind == 'dfn':
+                    base.append(('Component type', 'componentType', 'capacitor'))
+                base += [
                     ('Lead count', 'leadCount', current_leads or 2),
-                    ('Pitch (e)', 'pitch', 0.5),
-                ] + rng('Body width', 'bodyWidth.nom','bodyWidth.min','bodyWidth.max') + rng('Body length', 'bodyLength.nom','bodyLength.min','bodyLength.max') + [
-                    ('Lead length min', 'leadLength.min', 0.2),
-                    ('Lead length max', 'leadLength.max', 0.6),
-                    ('Lead width min', 'leadWidth.min', 0.2),
-                    ('Lead width max', 'leadWidth.max', 0.5),
+                    # Always show Pitch (e); it will be ignored if unused
+                    ('Pitch (e)', 'pitch', 0),
+                    # Show Body length first (datasheet order), then Body width
+                    ('Body length nom', 'bodyLength.nom', 2.0),
+                    ('Body length min', 'bodyLength.min', 1.8),
+                    ('Body length max', 'bodyLength.max', 2.2),
+                    ('Body width nom', 'bodyWidth.nom', 1.6),
+                    ('Body width min', 'bodyWidth.min', 1.4),
+                    ('Body width max', 'bodyWidth.max', 1.8),
+                    ('Lead length min', 'leadLength.min', 0.4),
+                    ('Lead length max', 'leadLength.max', 0.8),
+                    ('Lead width min', 'leadWidth.min', 1.4),
+                    ('Lead width max', 'leadWidth.max', 1.8),
                     ('Pull back (nom)', 'pullBack.nom', 0.0),
                     ('Height max', 'height.max', 1.0),
                 ]
@@ -325,20 +341,17 @@ class App(tk.Tk):
                     ]
             if kind == 'dfn':
                 base += [
-                    ('Pitch along length (e1)', 'pitch1', 0.8),
+                    ('Pitch along length (e1)', 'pitch1', 1.4),
+                    # Always show large pad fields; they will be ignored if unused
+                    ('Large pad offset (e2)', 'pitch2', 0.0),
+                    ('Large pad width nom', 'largePadWidth.nom', 1.2),
+                    ('Large pad width min', 'largePadWidth.min', 1.0),
+                    ('Large pad width max', 'largePadWidth.max', 1.4),
+                    ('Large pad length nom', 'largePadLength.nom', 1.8),
+                    ('Large pad length min', 'largePadLength.min', 1.6),
+                    ('Large pad length max', 'largePadLength.max', 2.0),
                 ]
-                if (current_leads or 2) == 3:
-                    base += [
-                        ('Large pad offset (e2)', 'pitch2', 0.0),
-                    ]
-                    base += [
-                        ('Large pad width nom', 'largePadWidth.nom', 0.6),
-                        ('Large pad width min', 'largePadWidth.min', 0.6),
-                        ('Large pad width max', 'largePadWidth.max', 0.6),
-                        ('Large pad length nom', 'largePadLength.nom', 1.2),
-                        ('Large pad length min', 'largePadLength.min', 1.2),
-                        ('Large pad length max', 'largePadLength.max', 1.2),
-                    ]
+
             return base
         if kind in ('qfp','cqfp'):
             return [
@@ -483,18 +496,36 @@ class App(tk.Tk):
             )
         if kind in ('chip','crystal','molded','sod','sodfl'):
             base = [
-                # Component type selector for naming (multi-type chip family)
+                # Component type selector for naming (multi-type families)
                 *([('Component type', 'componentType', 'CAPC')] if kind == 'chip' else []),
-                ('Body length nom', 'bodyLength.nom', 2.0),
-                ('Body length min', 'bodyLength.min', 1.9),
-                ('Body length max', 'bodyLength.max', 2.1),
-                ('Body width nom', 'bodyWidth.nom', 1.25),
-                ('Body width min', 'bodyWidth.min', 1.15),
-                ('Body width max', 'bodyWidth.max', 1.35),
-                ('Lead length nom', 'leadLength.nom', 0.35),
-                ('Lead length min', 'leadLength.min', 0.2),
-                ('Lead length max', 'leadLength.max', 0.5),
-                ('Height max', 'height.max', 1.0),
+                *([('Component type', 'componentType', 'capacitor')] if kind == 'molded' else []),
+                # Molded components need lead span for naming
+                *([('Lead span nom', 'leadSpan.nom', 5.075)] if kind == 'molded' else []),
+                *([('Lead span min', 'leadSpan.min', 4.8)] if kind == 'molded' else []),
+                *([('Lead span max', 'leadSpan.max', 5.35)] if kind == 'molded' else []),
+                # SODFL components need lead span for naming
+                *([('Lead span nom', 'leadSpan.nom', 5.2)] if kind == 'sodfl' else []),
+                *([('Lead span min', 'leadSpan.min', 5.05)] if kind == 'sodfl' else []),
+                *([('Lead span max', 'leadSpan.max', 5.35)] if kind == 'sodfl' else []),
+                # Set component-specific defaults 
+                ('Body length nom', 'bodyLength.nom', 4.25 if kind == 'sodfl' else (4.275 if kind == 'molded' else 2.0)),
+                ('Body length min', 'bodyLength.min', 4.15 if kind == 'sodfl' else (3.95 if kind == 'molded' else 1.9)),
+                ('Body length max', 'bodyLength.max', 4.35 if kind == 'sodfl' else (4.6 if kind == 'molded' else 2.1)),
+                ('Body width nom', 'bodyWidth.nom', 2.6 if kind == 'sodfl' else (2.575 if kind == 'molded' else 1.25)),
+                ('Body width min', 'bodyWidth.min', 2.5 if kind == 'sodfl' else (2.25 if kind == 'molded' else 1.15)),
+                ('Body width max', 'bodyWidth.max', 2.7 if kind == 'sodfl' else (2.9 if kind == 'molded' else 1.35)),
+                ('Lead length nom', 'leadLength.nom', 0.975 if kind == 'sodfl' else (1.125 if kind == 'molded' else 0.35)),
+                ('Lead length min', 'leadLength.min', 0.975 if kind == 'sodfl' else (0.75 if kind == 'molded' else 0.2)),
+                ('Lead length max', 'leadLength.max', 2.025 if kind == 'sodfl' else (1.5 if kind == 'molded' else 0.5)),
+                # Molded components need lead width for naming  
+                *([('Lead width nom', 'leadWidth.nom', 1.25)] if kind == 'molded' else []),
+                *([('Lead width min', 'leadWidth.min', 0.95)] if kind == 'molded' else []),
+                *([('Lead width max', 'leadWidth.max', 1.65)] if kind == 'molded' else []),
+                # SODFL components need lead width for naming
+                *([('Lead width nom', 'leadWidth.nom', 1.35)] if kind == 'sodfl' else []),
+                *([('Lead width min', 'leadWidth.min', 1.25)] if kind == 'sodfl' else []),
+                *([('Lead width max', 'leadWidth.max', 1.45)] if kind == 'sodfl' else []),
+                ('Height max', 'height.max', 1.0 if kind == 'sodfl' else (1.05 if kind == 'molded' else 1.0)),
             ]
             return base
         if kind == 'radial':
@@ -582,6 +613,18 @@ class App(tk.Tk):
                 ent = ttk.Combobox(self.fields_frame, textvariable=var, values=['CAPC','RESC','LEDC','DIOC','FUSC','BEADC','THRMC','VARC','INDC'], state='readonly')
                 try:
                     ent.set('CAPC')
+                except Exception:
+                    pass
+            elif current_kind == 'molded' and path == 'componentType':
+                ent = ttk.Combobox(self.fields_frame, textvariable=var, values=['capacitor','capacitor_polarized','diode','diode_non_polarized','fuse','inductor','inductor_precision','led','resistor'], state='readonly')
+                try:
+                    ent.set('capacitor')
+                except Exception:
+                    pass
+            elif current_kind == 'dfn' and path == 'componentType':
+                ent = ttk.Combobox(self.fields_frame, textvariable=var, values=['capacitor','capacitor_polarized','crystal','diode','diode_non_polarized','fuse','inductor','led','resistor','transistor'], state='readonly')
+                try:
+                    ent.set('capacitor')
                 except Exception:
                     pass
             else:
@@ -718,6 +761,100 @@ class App(tk.Tk):
             'library': {'pattern': settings},
         }
         return element
+
+    def _update_dfn_conditional_fields(self, lead_count: int) -> None:
+        """Update DFN conditional fields based on lead count without full rebuild"""
+        # Get current kind to verify we're still in DFN mode
+        if self.kind.get() != 'dfn':
+            return
+            
+        # Fields that need to be conditionally shown/hidden
+        pitch_field = 'pitch'
+        large_pad_fields = [
+            'largePadWidth.nom', 'largePadWidth.min', 'largePadWidth.max',
+            'largePadLength.nom', 'largePadLength.min', 'largePadLength.max'
+        ]
+        
+        # Determine what should be visible
+        show_pitch = lead_count >= 3
+        show_large_pads = lead_count == 3
+        
+        # Find the current field rows to update
+        existing_pitch_row = None
+        existing_large_pad_rows = []
+        
+        for label_widget, entry_widget in self._field_rows:
+            label_text = label_widget.cget('text')
+            if 'Pitch (e)' in label_text:
+                existing_pitch_row = (label_widget, entry_widget)
+            elif any(field in label_text for field in ['Large pad width', 'Large pad length']):
+                existing_large_pad_rows.append((label_widget, entry_widget))
+        
+        # Handle Pitch (e) field
+        if show_pitch and not existing_pitch_row:
+            # Add Pitch (e) field
+            self._add_field_row('Pitch (e)', 'pitch', 0)
+        elif not show_pitch and existing_pitch_row:
+            # Remove Pitch (e) field
+            self._remove_field_row(existing_pitch_row)
+            
+        # Handle large pad fields
+        if show_large_pads and not existing_large_pad_rows:
+            # Add large pad fields
+            self._add_field_row('Large pad width nom', 'largePadWidth.nom', 1.2)
+            self._add_field_row('Large pad width min', 'largePadWidth.min', 1.0)
+            self._add_field_row('Large pad width max', 'largePadWidth.max', 1.4)
+            self._add_field_row('Large pad length nom', 'largePadLength.nom', 1.8)
+            self._add_field_row('Large pad length min', 'largePadLength.min', 1.6)
+            self._add_field_row('Large pad length max', 'largePadLength.max', 2.0)
+        elif not show_large_pads and existing_large_pad_rows:
+            # Remove large pad fields
+            for row in existing_large_pad_rows:
+                self._remove_field_row(row)
+
+    def _add_field_row(self, label_text: str, var_path: str, default_value) -> None:
+        """Add a single field row to the GUI"""
+        # Find the next available row
+        max_row = max([widget.grid_info()['row'] for widget in self.fields_frame.grid_slaves()], default=-1)
+        row = max_row + 1
+        
+        # Create label and entry
+        label = ttk.Label(self.fields_frame, text=label_text)
+        label.grid(row=row, column=0, sticky='w', padx=(0, 10))
+        
+        var = tk.StringVar(value=str(default_value))
+        entry = ttk.Entry(self.fields_frame, textvariable=var)
+        entry.grid(row=row, column=1, sticky='ew')
+        
+        # Add event bindings
+        try:
+            entry.bind('<<ComboboxSelected>>', lambda e: self._update_name_preview())
+            entry.bind('<KeyRelease>', lambda e: self._update_name_preview())
+            entry.bind('<FocusOut>', lambda e: self._update_name_preview())
+        except Exception:
+            pass
+            
+        # Store the variable and row
+        self._vars[var_path] = var
+        self._field_rows.append((label, entry))
+
+    def _remove_field_row(self, field_row) -> None:
+        """Remove a single field row from the GUI"""
+        label_widget, entry_widget = field_row
+        
+        # Remove from grid
+        label_widget.grid_remove()
+        entry_widget.grid_remove()
+        
+        # Remove from tracking lists
+        if field_row in self._field_rows:
+            self._field_rows.remove(field_row)
+            
+        # Find and remove the variable
+        for var_path, var in list(self._vars.items()):
+            if var == entry_widget.cget('textvariable'):
+                del self._vars[var_path]
+                break
 
     def _update_name_preview(self) -> None:
         try:

@@ -371,6 +371,237 @@ def corner_concave(pattern, housing):
     pattern.layer('topAssembly').lineWidth(0.5).circle(dot_x, dot_y, 0.000001)
 
 
+def sodfl_preamble(pattern, housing):
+    """Preamble for SODFL components with proper text rotation (90° counterclockwise from chip)"""
+    settings = pattern.settings
+    
+    # For SODFL, body dimensions are swapped like chip (bl/bw become x/y)
+    bw = housing['bodyWidth']['nom']  # actual body width
+    bl = housing['bodyLength']['nom']  # actual body length
+    
+    line_width = settings['lineWidth']['assembly']
+    
+    # For SODFL: rotate reference text 90 degrees counterclockwise (relative to chip's 90° clockwise)
+    # This means 0 degrees (no rotation) since chip is 90° clockwise
+    fab_angle = 0
+    
+    # Text size scaled by body length (longer dimension)
+    component_length = bl  # Use body length for SODFL
+    ref_text_size = min(component_length / 4, 0.8)
+    
+    # Font size is computed from text size as usual
+    font_size = ref_text_size
+    max_font = 0.66 * min(bw, bl)
+    if font_size > max_font:
+        font_size = max_font
+    text_line_width = min(line_width, font_size / 5)
+    
+    # Calculate text position using real pad positions (similar to chip)
+    if pattern.pads:
+        pad_extent = 0
+        for pad in pattern.pads.values():
+            # Calculate the farthest point of each pad from center
+            pad_extent = max(pad_extent, abs(pad.y) + pad.height / 2)
+        
+        if pad_extent == 0:
+            pad_extent = 0.7  # fallback if no pads found
+        
+        # Use SODFL-specific positioning - reference text above component
+        body_y = bw / 2  # Use body width for Y extent in SODFL coordinates
+        courtyard = settings.get('clearance', {}).get('courtyard', 0.25)
+        reference_text_y = -(max(body_y, pad_extent) + courtyard + 0.75)
+    else:
+        reference_text_y = -1.5  # fallback
+    
+    # Calculate value text position (below component)
+    body_y = max(bw, bl) / 2
+    pad_y = 0.7  # estimated pad height/2 + margin
+    courtyard = settings.get('clearance', {}).get('courtyard', 0.25)
+    value_text_y = max(body_y, pad_y) + courtyard + 0.75
+    
+    (
+        _centroid(pattern)
+        .layer('topAssembly')
+        .lineWidth(text_line_width)
+        .attribute(
+            'reference',
+            {
+                'text': '${REFERENCE}',
+                'x': 0,
+                'y': 0,
+                'angle': fab_angle,  # 0 degrees for SODFL
+                'fontSize': font_size,
+                'halign': 'center',
+                'valign': 'center',
+            },
+        )
+        .attribute(
+            'value',
+            {
+                'text': pattern.name,
+                'x': 0,
+                'y': value_text_y,
+                'angle': fab_angle,  # 0 degrees for SODFL
+                'fontSize': font_size,
+                'halign': 'center',
+                'valign': 'center',
+            },
+        )
+        .attribute(
+            'user',
+            {
+                'text': 'REF**',
+                'x': 0,
+                'y': 0,
+                'angle': 0,  # Keep user text at 0 degrees
+                'fontSize': font_size,
+                'halign': 'center',
+                'valign': 'center',
+                'visible': False,
+            },
+        )
+        .lineWidth(line_width)
+    )
+
+
+def sodfl(pattern, housing):
+    """Assembly outline for SODFL packages with pin 1 dot marker instead of chamfered edge (similar to SON)"""
+    # For SODFL, use the chip coordinates (swapped x/y due to 90° rotation)
+    bw = housing['bodyWidth']['nom']
+    bl = housing['bodyLength']['nom']
+    
+    # Since SODFL is rotated like chip: x = bl/2, y = bw/2
+    x = bl / 2  # Use body length for X extent
+    y = bw / 2  # Use body width for Y extent
+    
+    sodfl_preamble(pattern, housing)
+    # Draw simple rectangle (no chamfered edge)
+    pattern.rectangle(-x, -y, x, y)
+    
+    # Add pin 1 dot marker 0.5mm from corner toward center (pin 1 is on the left in horizontal layout)
+    dot_offset = 0.4
+    dot_x = -x + dot_offset  # 0.5mm from left edge toward center
+    dot_y = -y + dot_offset  # 0.5mm from bottom edge toward center (bottom-left corner)
+    
+    # Draw the dot (circle with small radius but thick line width for visibility)
+    pattern.layer('topAssembly').lineWidth(0.5).circle(dot_x, dot_y, 0.000001)
+
+
+def molded_preamble(pattern, housing):
+    """Preamble for molded components with proper text rotation (same as SODFL - 90° counterclockwise from chip)"""
+    settings = pattern.settings
+    
+    # For molded, body dimensions are swapped like chip (bl/bw become x/y)
+    bw = housing['bodyWidth']['nom']  # actual body width
+    bl = housing['bodyLength']['nom']  # actual body length
+    
+    line_width = settings['lineWidth']['assembly']
+    
+    # For molded: rotate reference text 90 degrees counterclockwise (same as SODFL)
+    fab_angle = 0
+    
+    # Text size scaled by body length (longer dimension)
+    component_length = bl  # Use body length for molded
+    ref_text_size = min(component_length / 4, 0.8)
+    
+    # Font size is computed from text size as usual
+    font_size = ref_text_size
+    max_font = 0.66 * min(bw, bl)
+    if font_size > max_font:
+        font_size = max_font
+    text_line_width = min(line_width, font_size / 5)
+    
+    # Calculate text position using real pad positions (similar to chip)
+    if pattern.pads:
+        pad_extent = 0
+        for pad in pattern.pads.values():
+            # Calculate the farthest point of each pad from center
+            pad_extent = max(pad_extent, abs(pad.y) + pad.height / 2)
+        
+        if pad_extent == 0:
+            pad_extent = 0.7  # fallback if no pads found
+        
+        # Use molded-specific positioning - reference text above component
+        body_y = bw / 2  # Use body width for Y extent in molded coordinates
+        courtyard = settings.get('clearance', {}).get('courtyard', 0.25)
+        reference_text_y = -(max(body_y, pad_extent) + courtyard + 0.75)
+    else:
+        reference_text_y = -1.5  # fallback
+    
+    # Calculate value text position (below component)
+    body_y = max(bw, bl) / 2
+    pad_y = 0.7  # estimated pad height/2 + margin
+    courtyard = settings.get('clearance', {}).get('courtyard', 0.25)
+    value_text_y = max(body_y, pad_y) + courtyard + 0.75
+    
+    (
+        _centroid(pattern)
+        .layer('topAssembly')
+        .lineWidth(text_line_width)
+        .attribute(
+            'reference',
+            {
+                'text': '${REFERENCE}',
+                'x': 0,
+                'y': 0,
+                'angle': fab_angle,  # 0 degrees for molded
+                'fontSize': font_size,
+                'halign': 'center',
+                'valign': 'center',
+            },
+        )
+        .attribute(
+            'value',
+            {
+                'text': pattern.name,
+                'x': 0,
+                'y': value_text_y,
+                'angle': fab_angle,  # 0 degrees for molded
+                'fontSize': font_size,
+                'halign': 'center',
+                'valign': 'center',
+            },
+        )
+        .attribute(
+            'user',
+            {
+                'text': 'REF**',
+                'x': 0,
+                'y': 0,
+                'angle': 0,  # Keep user text at 0 degrees
+                'fontSize': font_size,
+                'halign': 'center',
+                'valign': 'center',
+                'visible': False,
+            },
+        )
+        .lineWidth(line_width)
+    )
+
+
+def molded(pattern, housing):
+    """Assembly outline for molded packages with pin 1 dot marker instead of chamfered edge (similar to SODFL)"""
+    # For molded, use the chip coordinates (swapped x/y due to 90° rotation)
+    bw = housing['bodyWidth']['nom']
+    bl = housing['bodyLength']['nom']
+    
+    # Since molded is rotated like chip: x = bl/2, y = bw/2
+    x = bl / 2  # Use body length for X extent
+    y = bw / 2  # Use body width for Y extent
+    
+    molded_preamble(pattern, housing)
+    # Draw simple rectangle (no chamfered edge)
+    pattern.rectangle(-x, -y, x, y)
+    
+    # Add pin 1 dot marker 0.4mm from corner toward center (pin 1 is on the left in horizontal layout)
+    dot_offset = 0.4
+    dot_x = -x + dot_offset  # 0.4mm from left edge toward center
+    dot_y = -y + dot_offset  # 0.4mm from bottom edge toward center (bottom-left corner)
+    
+    # Draw the dot (circle with small radius but thick line width for visibility)
+    pattern.layer('topAssembly').lineWidth(0.5).circle(dot_x, dot_y, 0.000001)
+
+
 def chip_preamble(pattern, housing):
     """Preamble for chip components with 90-degree clockwise rotated ${REFERENCE} text"""
     settings = pattern.settings
@@ -465,8 +696,16 @@ def chip_preamble(pattern, housing):
 
 
 def two_pin(pattern, housing):
+    # Use SODFL-specific assembly logic for SODFL components
+    if housing.get('sodfl'):
+        sodfl(pattern, housing)
+        return  # Early return since sodfl() handles everything
+    # Use molded-specific assembly logic for molded components
+    elif housing.get('molded'):
+        molded(pattern, housing)
+        return  # Early return since molded() handles everything
     # Use chip-specific assembly logic if it's a chip component
-    if housing.get('chip'):
+    elif housing.get('chip'):
         chip_preamble(pattern, housing)
     else:
         preamble(pattern, housing)
@@ -501,4 +740,21 @@ def two_pin(pattern, housing):
                 pattern.rectangle(-x, -y, x, y)
     elif 'bodyDiameter' in housing:
         pattern.circle(0, 0, housing['bodyDiameter']['nom'] / 2)
+
+
+def dfn_molded_style(pattern, housing):
+    """DFN-specific assembly outline matching molded style: no chamfer, pin 1 dot bottom-left, 0° fab_angle."""
+    # Use molded preamble for text rotation/placement (same behavior requested)
+    molded_preamble(pattern, housing)
+    # Draw rectangle using DFN horizontal orientation (x = bl/2, y = bw/2)
+    bw = housing['bodyWidth']['nom']
+    bl = housing['bodyLength']['nom']
+    x = bl / 2
+    y = bw / 2
+    pattern.rectangle(-x, -y, x, y)
+    # Pin 1 dot at bottom-left similar to molded
+    dot_offset = 0.4
+    dot_x = -x + dot_offset
+    dot_y = -y + dot_offset
+    pattern.layer('topAssembly').lineWidth(0.5).circle(dot_x, dot_y, 0.000001)
 
