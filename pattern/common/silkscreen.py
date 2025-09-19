@@ -128,8 +128,8 @@ def dual(pattern, housing):
                 dot1_x = pad1_x  # Aligned with the first pad's X position
             else:
                 dot1_x = body_left - 0.25 - silk_to_pad_clearance
-            # Circle with same dimensions as QFP
-            pattern.layer('topSilkscreen').lineWidth(0.5).circle(dot1_x, dot1_y, 0.000001)
+            # Circle with 0.2mm radius, 0.1mm line width, filled
+            pattern.layer('topSilkscreen').lineWidth(0.1).fill(True).circle(dot1_x, dot1_y, 0.2).fill(False)
     else:
         # Standard dual: draw full rectangle
         pattern.rectangle(x1, y1, x2, y2)
@@ -220,8 +220,8 @@ def corner_concave(pattern, housing):
             # Position 1mm away from pad edge
             dot1_x = pad1.x - pad1.width/2 - 0.5  # 1mm left from pad edge
             dot1_y = pad1.y  # Aligned with pad 1 Y position
-            # Circle with same dimensions as other packages
-            pattern.layer('topSilkscreen').lineWidth(0.5).circle(dot1_x, dot1_y, 0.000001)
+            # Circle with 0.2mm radius, 0.1mm line width, filled
+            pattern.layer('topSilkscreen').lineWidth(0.1).fill(True).circle(dot1_x, dot1_y, 0.2).fill(False)
 
 
 def grid_array(pattern, housing):
@@ -502,8 +502,8 @@ def quad(pattern, housing):
         dot1_x = pad1_x - 0.75  # Move 0.75mm to the left
         dot1_y = pad1_y - pad1_size_y/2 - 0.25 - silk_to_pad_clearance
         
-        # Circle with very small radius but thick line width for visibility
-        pattern.layer('topSilkscreen').lineWidth(0.5).circle(dot1_x, dot1_y, 0.000001)
+        # Circle with 0.2mm radius, 0.1mm line width, filled
+        pattern.layer('topSilkscreen').lineWidth(0.1).fill(True).circle(dot1_x, dot1_y, 0.2).fill(False)
 
 
 def sodfl_preamble(pattern, housing):
@@ -602,8 +602,8 @@ def sodfl(pattern, housing):
             dot_x = pad1.x - pad1.width / 2 - silk_pad_clearance - 0.6  # Original offset + 0.1mm more
             dot_y = 0  # Centered vertically
             
-            # Draw larger dot with 0.5mm line width (same as SON)
-            pattern.layer('topSilkscreen').lineWidth(0.5).circle(dot_x, dot_y, 0.000001)
+            # Draw dot with 0.2mm radius, 0.1mm line width, filled
+            pattern.layer('topSilkscreen').lineWidth(0.1).fill(True).circle(dot_x, dot_y, 0.2).fill(False)
     else:
         # Fallback: use SODFL preamble for text positioning
         sodfl_preamble(pattern, housing)
@@ -705,8 +705,8 @@ def molded(pattern, housing):
             dot_x = pad1.x - pad1.width / 2 - silk_pad_clearance - 0.6  # Original offset + 0.1mm more
             dot_y = 0  # Centered vertically
             
-            # Draw larger dot with 0.5mm line width (same as SON)
-            pattern.layer('topSilkscreen').lineWidth(0.5).circle(dot_x, dot_y, 0.000001)
+            # Draw dot with 0.2mm radius, 0.1mm line width, filled
+            pattern.layer('topSilkscreen').lineWidth(0.1).fill(True).circle(dot_x, dot_y, 0.2).fill(False)
     else:
         # Fallback: use molded preamble for text positioning
         molded_preamble(pattern, housing)
@@ -759,7 +759,7 @@ def dfn_molded_style(pattern, housing):
             # Place dot center 0.6mm from pad edge toward left (closer than previous 0.8mm)
             dot_x = leftmost.x - leftmost.width / 2 - 0.6
             dot_y = 0
-            pattern.layer('topSilkscreen').lineWidth(0.5).circle(dot_x, dot_y, 0.000001)
+            pattern.layer('topSilkscreen').lineWidth(0.1).fill(True).circle(dot_x, dot_y, 0.2).fill(False)
     else:
         # Fallback
         molded_preamble(pattern, housing)

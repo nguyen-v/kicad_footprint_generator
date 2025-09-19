@@ -150,8 +150,8 @@ def quad(pattern, housing):
     dot_x = -x + dot_offset  # 0.8mm from left edge toward center
     dot_y = -y + dot_offset  # 0.8mm from top edge toward center
     
-    # Draw the dot (circle with small radius but thick line width for visibility)
-    pattern.layer('topAssembly').lineWidth(0.5).circle(dot_x, dot_y, 0.000001)
+    # Draw the dot (circle with 0.2mm radius, 0.1mm line width, filled)
+    pattern.layer('topAssembly').lineWidth(0.1).fill(True).circle(dot_x, dot_y, 0.2).fill(False)
 
 
 def son(pattern, housing):
@@ -170,8 +170,8 @@ def son(pattern, housing):
     dot_x = -x + dot_offset  # 0.5mm from left edge toward center
     dot_y = -y + dot_offset  # 0.5mm from top edge toward center
     
-    # Draw the dot (circle with small radius but thick line width for visibility)
-    pattern.layer('topAssembly').lineWidth(0.5).circle(dot_x, dot_y, 0.000001)
+    # Draw the dot (circle with 0.2mm radius, 0.1mm line width, filled)
+    pattern.layer('topAssembly').lineWidth(0.1).fill(True).circle(dot_x, dot_y, 0.2).fill(False)
 
 
 def sot23(pattern, housing):
@@ -258,8 +258,8 @@ def sot23(pattern, housing):
     dot_x = -x + dot_offset  # 0.5mm from left edge toward center
     dot_y = -y + dot_offset  # 0.5mm from top edge toward center
     
-    # Draw the dot (circle with small radius but thick line width for visibility)
-    pattern.layer('topAssembly').lineWidth(0.5).circle(dot_x, dot_y, 0.000001)
+    # Draw the dot (circle with 0.2mm radius, 0.1mm line width, filled)
+    pattern.layer('topAssembly').lineWidth(0.1).fill(True).circle(dot_x, dot_y, 0.2).fill(False)
 
 
 def sop(pattern, housing):
@@ -347,8 +347,8 @@ def sop(pattern, housing):
     dot_x = -x + dot_offset  # 0.5mm from left edge toward center
     dot_y = -y + dot_offset  # 0.5mm from top edge toward center
     
-    # Draw the dot (circle with small radius but thick line width for visibility)
-    pattern.layer('topAssembly').lineWidth(0.5).circle(dot_x, dot_y, 0.000001)
+    # Draw the dot (circle with 0.2mm radius, 0.1mm line width, filled)
+    pattern.layer('topAssembly').lineWidth(0.1).fill(True).circle(dot_x, dot_y, 0.2).fill(False)
 
 
 def corner_concave(pattern, housing):
@@ -367,8 +367,8 @@ def corner_concave(pattern, housing):
     dot_x = -x + dot_offset  # 0.5mm from left edge toward center
     dot_y = y - dot_offset   # 0.5mm from top edge toward center (top-left corner)
     
-    # Draw the dot (circle with small radius but thick line width for visibility)
-    pattern.layer('topAssembly').lineWidth(0.5).circle(dot_x, dot_y, 0.000001)
+    # Draw the dot (circle with 0.2mm radius, 0.1mm line width, filled)
+    pattern.layer('topAssembly').lineWidth(0.1).fill(True).circle(dot_x, dot_y, 0.2).fill(False)
 
 
 def sodfl_preamble(pattern, housing):
@@ -483,8 +483,8 @@ def sodfl(pattern, housing):
     dot_x = -x + dot_offset  # 0.5mm from left edge toward center
     dot_y = -y + dot_offset  # 0.5mm from bottom edge toward center (bottom-left corner)
     
-    # Draw the dot (circle with small radius but thick line width for visibility)
-    pattern.layer('topAssembly').lineWidth(0.5).circle(dot_x, dot_y, 0.000001)
+    # Draw the dot (circle with 0.2mm radius, 0.1mm line width, filled)
+    pattern.layer('topAssembly').lineWidth(0.1).fill(True).circle(dot_x, dot_y, 0.2).fill(False)
 
 
 def molded_preamble(pattern, housing):
@@ -598,8 +598,8 @@ def molded(pattern, housing):
     dot_x = -x + dot_offset  # 0.4mm from left edge toward center
     dot_y = -y + dot_offset  # 0.4mm from bottom edge toward center (bottom-left corner)
     
-    # Draw the dot (circle with small radius but thick line width for visibility)
-    pattern.layer('topAssembly').lineWidth(0.5).circle(dot_x, dot_y, 0.000001)
+    # Draw the dot (circle with 0.2mm radius, 0.1mm line width, filled)
+    pattern.layer('topAssembly').lineWidth(0.1).fill(True).circle(dot_x, dot_y, 0.2).fill(False)
 
 
 def chip_preamble(pattern, housing):
@@ -756,5 +756,5 @@ def dfn_molded_style(pattern, housing):
     dot_offset = 0.4
     dot_x = -x + dot_offset
     dot_y = -y + dot_offset
-    pattern.layer('topAssembly').lineWidth(0.5).circle(dot_x, dot_y, 0.000001)
+    pattern.layer('topAssembly').lineWidth(0.1).fill(True).circle(dot_x, dot_y, 0.2).fill(False)
 
