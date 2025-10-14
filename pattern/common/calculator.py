@@ -241,6 +241,24 @@ def _flatlead(pattern: dict, housing: dict) -> dict:
     return params
 
 
+def _sotfl_flatlead(pattern: dict, housing: dict) -> dict:
+    """SOTFL-specific flatlead parameters with custom density values"""
+    settings = pattern['settings']
+    # Custom density parameters for SOTFL as specified by user
+    toes = {'M': 0.3, 'N': 0.2, 'L': 0.1}
+    heels = {'M': 0.0, 'N': 0.0, 'L': 0.0}
+    sides = {'M': 0.05, 'N': 0.0, 'L': 0.0}
+    courtyard_values = {'M': 0.4, 'N': 0.2, 'L': 0.1}
+    
+    params = _params(pattern, housing)
+    params['Jt'] = pattern.get('toe', _density_value(toes, settings['densityLevel']))
+    params['Jh'] = pattern.get('heel', _density_value(heels, settings['densityLevel']))
+    params['Js'] = pattern.get('side', _density_value(sides, settings['densityLevel']))
+    params['courtyard'] = courtyard_values[settings['densityLevel']]
+    pattern['sizeRoundoff'] = 0.05
+    return params
+
+
 def _jlead(pattern: dict, housing: dict) -> dict:
     settings = pattern['settings']
     toes = {'M': 0.1, 'N': 0.0, 'L': -0.1}
@@ -251,6 +269,24 @@ def _jlead(pattern: dict, housing: dict) -> dict:
     params['Jh'] = pattern.get('toe', _density_value(toes, settings['densityLevel']))
     params['Js'] = pattern.get('side', _density_value(sides, settings['densityLevel']))
     params['courtyard'] = {'M': 0.50, 'N': 0.25, 'L': 0.10}[settings['densityLevel']]
+    pattern['sizeRoundoff'] = 0.05
+    return params
+
+
+def _soj_jlead(pattern: dict, housing: dict) -> dict:
+    """SOJ-specific J-lead parameters with custom density values"""
+    settings = pattern['settings']
+    # Custom density parameters for SOJ as specified by user
+    toes = {'M': 0.1, 'N': 0.0, 'L': 0.0}
+    heels = {'M': 0.55, 'N': 0.35, 'L': 0.15}
+    sides = {'M': 0.05, 'N': 0.03, 'L': 0.01}
+    courtyard_values = {'M': 0.4, 'N': 0.2, 'L': 0.1}
+    
+    params = _params(pattern, housing)
+    params['Jt'] = pattern.get('heel', _density_value(heels, settings['densityLevel']))
+    params['Jh'] = pattern.get('toe', _density_value(toes, settings['densityLevel']))
+    params['Js'] = pattern.get('side', _density_value(sides, settings['densityLevel']))
+    params['courtyard'] = courtyard_values[settings['densityLevel']]
     pattern['sizeRoundoff'] = 0.05
     return params
 
@@ -1062,7 +1098,7 @@ def sot(pattern: dict, housing: dict) -> dict:
     params['Wmin'] = housing['leadWidth2']['min']
     params['Wmax'] = housing['leadWidth2']['max']
     ipc2 = _ipc7351(params)
-    ipc2['body'] = housing['bodyWidth']['nom']
+    # ipc2['body'] = housing['bodyWidth']['nom']  # Removed to prevent body constraint trimming
     pad2 = _pad(ipc2, pattern)
 
     pad = {
@@ -1080,6 +1116,72 @@ def sot(pattern: dict, housing: dict) -> dict:
         d = settings['minimum']['spaceForIron'] - lead_to_pad
         pad['width1'] += d
         pad['width2'] += d
+        pad['distance'] += d
+    return pad
+
+
+def sotfl(pattern: dict, housing: dict) -> dict:
+    """SOTFL calculator using custom flatlead parameters without thermal pad"""
+    settings = pattern['settings']
+    # Ensure leadWidth1 and leadWidth2 are set for sot() function
+    if 'leadWidth1' not in housing:
+        housing['leadWidth1'] = housing['leadWidth']
+    if 'leadWidth2' not in housing:
+        housing['leadWidth2'] = housing['leadWidth']
+    
+    # Use custom SOTFL flatlead parameters
+    params = _sotfl_flatlead(pattern, housing)
+    params['Lmin'] = housing['leadSpan']['min']
+    params['Lmax'] = housing['leadSpan']['max']
+    params['body'] = housing['bodyWidth']
+    ipc1 = _ipc7351(params)
+    ipc1['clearance'] = settings['clearance']['padToPad']
+    ipc1['pitch'] = housing['pitch']
+    # ipc1['body'] = housing['bodyWidth']['nom']  # Removed to prevent body constraint trimming
+    pad1 = _pad(ipc1, pattern)
+
+    params['Wmin'] = housing['leadWidth2']['min']
+    params['Wmax'] = housing['leadWidth2']['max']
+    ipc2 = _ipc7351(params)
+    # ipc2['body'] = housing['bodyWidth']['nom']  # Removed to prevent body constraint trimming
+    pad2 = _pad(ipc2, pattern)
+
+    pad = {
+        'width1': pad1['width'],
+        'height1': pad1['height'],
+        'distance': pad1['distance'],
+        'width2': pad2['width'],
+        'height2': pad2['height'],
+        'courtyard': params['courtyard'],
+        'trimmed': pad1['trimmed'] or pad2['trimmed'],
+    }
+    pad = _choose_preferred(pad, pattern, housing)
+    lead_to_pad = (pad['distance'] + pad['width1'] / 2 + pad['width2'] / 2 - housing['leadSpan']['nom']) / 2
+    if lead_to_pad < settings['minimum']['spaceForIron']:
+        d = settings['minimum']['spaceForIron'] - lead_to_pad
+        pad['width1'] += d
+        pad['width2'] += d
+        pad['distance'] += d
+    return pad
+
+
+def soj(pattern: dict, housing: dict) -> dict:
+    """SOJ calculator using custom J-lead parameters"""
+    settings = pattern['settings']
+    # Use custom SOJ J-lead parameters
+    params = _soj_jlead(pattern, housing)
+    params['Lmin'] = housing['leadSpan']['min']
+    params['Lmax'] = housing['leadSpan']['max']
+    ipc = _ipc7351(params)
+    ipc['clearance'] = settings['clearance']['padToPad']
+    ipc['pitch'] = housing['pitch']
+    pad = _pad(ipc, pattern)
+    pad['courtyard'] = params['courtyard']
+    pad = _choose_preferred(pad, pattern, housing)
+    lead_to_pad = (pad['distance'] + pad['width'] - housing['leadSpan']['nom']) / 2
+    if lead_to_pad < settings['minimum']['spaceForIron']:
+        d = settings['minimum']['spaceForIron'] - lead_to_pad
+        pad['width'] += d
         pad['distance'] += d
     return pad
 

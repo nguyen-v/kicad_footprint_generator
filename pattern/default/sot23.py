@@ -94,8 +94,111 @@ def build(pattern, element):
         y -= right_pitch
 
     copper.mask(pattern)
-    silkscreen.dual(pattern, housing)
+    
+    # Custom silkscreen for SOT23
+    _sot23_silkscreen(pattern, housing)
+    
     assembly.sot23(pattern, housing)
     courtyard.boundary_flex(pattern, housing, pad_params['courtyard'])
     mask.dual(pattern, housing)
+
+
+def _sot23_silkscreen(pattern, housing):
+    """Custom silkscreen for SOT23 with special 3-lead corner lines"""
+    s = pattern.settings
+    lw = s['lineWidth']['silkscreen']
+    w = housing['bodyWidth']['nom']
+    l = housing['bodyLength']['nom']
+    gap = lw / 2 + s['clearance']['padToSilk']
+    
+    # Basic silkscreen setup
+    silkscreen.preamble(pattern, housing)
+    
+    # Body boundaries
+    body_left = -w / 2
+    body_right = w / 2
+    body_bottom = -l / 2 - lw / 2
+    body_top = l / 2 + lw / 2
+    
+    # Draw horizontal lines (top and bottom)
+    pattern.line(body_left, body_bottom, body_right, body_bottom)  # bottom line
+    pattern.line(body_left, body_top, body_right, body_top)  # top line
+    
+    # Special case for 3-lead: add corner lines on the right side
+    if housing['leadCount'] == 3:
+        # Get the third pad (single pad on right side)
+        pad3 = pattern.pads['3']  # pad numbering: 1,2 on left, 3 on right
+        pad3_y_top = pad3.y + pad3.height / 2 + gap
+        pad3_y_bottom = pad3.y - pad3.height / 2 - gap
+        
+        # Offset vertical lines outside body by half line width (0.12/2 = 0.06)
+        line_offset = lw / 2
+        right_line_x = body_right + line_offset
+        
+        # Right vertical line from body bottom to pad clearance
+        pattern.line(right_line_x, body_bottom, right_line_x, pad3_y_bottom)
+        
+        # Right vertical line from pad clearance to body top  
+        pattern.line(right_line_x, pad3_y_top, right_line_x, body_top)
+        
+        # Corner lines to connect with horizontal lines
+        pattern.line(body_right, body_bottom, right_line_x, body_bottom)  # bottom corner
+        pattern.line(body_right, body_top, right_line_x, body_top)  # top corner
+    
+    # Add pin 1 indicator for polarized components
+    if housing.get('polarized'):
+        pad1 = pattern.pads['1']
+        pad1_x = pad1.x
+        pad1_y = pad1.y
+        pad1_size_y = pad1.height
+        silk_to_pad_clearance = s['clearance']['silkToPad']
+        
+        # Pin 1 dot position (same as original implementation)
+        dot1_y = pad1_y - pad1_size_y/2 - 0.25 - silk_to_pad_clearance
+        dot1_x = pad1_x
+        
+        # Check for collision with silkscreen lines and maintain minimum distance
+        min_silk_distance = 0.2  # 0.2mm minimum silk-to-silk distance
+        dot_radius = 0.2    # dot radius
+        dot_line_width = 0.1  # dot line width
+        silk_line_width = lw  # silkscreen line width (typically 0.12mm)
+        
+        # Calculate required clearance from dot center to line center
+        # This accounts for: dot radius + dot line width/2 + min clearance + silk line width/2
+        dot_outer_radius = dot_radius + dot_line_width / 2
+        required_clearance = dot_outer_radius + min_silk_distance + silk_line_width / 2
+        
+        # Check distance from dot center to line centers (top and bottom)
+        distance_to_top = abs(dot1_y - body_top)
+        distance_to_bottom = abs(dot1_y - body_bottom)
+        
+        # If too close to horizontal lines, move dot left to maintain clearance
+        if distance_to_top < required_clearance or distance_to_bottom < required_clearance:
+            # Move dot left by the amount needed to clear the minimum distance
+            # Consider the closest horizontal line
+            closest_line_distance = min(distance_to_top, distance_to_bottom)
+            if closest_line_distance < required_clearance:
+                # Calculate how much to move left to achieve required_clearance
+                move_distance = required_clearance - closest_line_distance
+                dot1_x = pad1_x - move_distance
+        
+        # For 3-lead packages, also check distance to vertical corner lines
+        if housing['leadCount'] == 3:
+            # Check distance to the right vertical lines (if they exist)
+            line_offset = lw / 2
+            right_line_x = body_right + line_offset
+            distance_to_right_line = abs(dot1_x - right_line_x)
+            
+            # If too close to right vertical line, move dot further left
+            if distance_to_right_line < required_clearance:
+                move_distance = required_clearance - distance_to_right_line
+                dot1_x = dot1_x - move_distance
+        
+        # Ensure dot doesn't go too far left (stay reasonable relative to pad)
+        max_left_offset = pad1_x - 1.0  # Don't move more than 1mm left from pad center
+        if dot1_x < max_left_offset:
+            dot1_x = max_left_offset
+        
+        # Draw pin 1 dot (filled circle, 0.2mm radius like original)
+        pattern.layer('topSilkscreen').lineWidth(0.1).fill(True).circle(dot1_x, dot1_y, 0.2).fill(False)
 

@@ -100,7 +100,7 @@ def dual(pattern, housing):
     yp = (yf if xp < x1 else y1) - 1.5 * lw
     preamble(pattern, housing)
     
-    if housing.get('son') or housing.get('sot23') or housing.get('sop') or housing.get('soic'):
+    if housing.get('son') or housing.get('sot23') or housing.get('sop') or housing.get('soj') or housing.get('soic'):
         # SON/SOT-23/SOP/SOIC-specific: only draw horizontal lines (top and bottom)
         # Lines should be close to body edges, not based on pad positions
         body_left = -w / 2
@@ -124,17 +124,48 @@ def dual(pattern, housing):
             dot1_y = pad1_y - pad1_size_y/2 - 0.25 - silk_to_pad_clearance
             
             # X position: align with the top-left pad x position
-            if housing.get('sot23') or housing.get('sop') or housing.get('soic'):
+            if housing.get('sot23') or housing.get('sop') or housing.get('soj') or housing.get('soic'):
                 dot1_x = pad1_x  # Aligned with the first pad's X position
             else:
                 dot1_x = body_left - 0.25 - silk_to_pad_clearance
+            
+            # Check for collision with silkscreen lines and maintain minimum silk-to-silk distance
+            min_silk_distance = 0.2  # 0.2mm minimum silk-to-silk distance
+            dot_radius = 0.2    # dot radius
+            dot_line_width = 0.1  # dot line width
+            silk_line_width = lw  # silkscreen line width (typically 0.12mm)
+            
+            # Calculate required clearance from dot center to line center
+            # This accounts for: dot radius + dot line width/2 + min clearance + silk line width/2
+            dot_outer_radius = dot_radius + dot_line_width / 2
+            required_clearance = dot_outer_radius + min_silk_distance + silk_line_width / 2
+            
+            # Check distance from dot center to line centers (top and bottom)
+            distance_to_top = abs(dot1_y - body_y2)
+            distance_to_bottom = abs(dot1_y - body_y1)
+            
+            # If too close to horizontal lines, move dot left to maintain clearance
+            if distance_to_top < required_clearance or distance_to_bottom < required_clearance:
+                # Move dot left by the amount needed to clear the minimum distance
+                # Consider the closest horizontal line
+                closest_line_distance = min(distance_to_top, distance_to_bottom)
+                if closest_line_distance < required_clearance:
+                    # Calculate how much to move left to achieve required_clearance
+                    move_distance = required_clearance - closest_line_distance
+                    dot1_x = pad1_x - move_distance
+            
+            # Ensure dot doesn't go too far left (stay reasonable relative to pad)
+            max_left_offset = pad1_x - 1.0  # Don't move more than 1mm left from pad center
+            if dot1_x < max_left_offset:
+                dot1_x = max_left_offset
+            
             # Circle with 0.2mm radius, 0.1mm line width, filled
             pattern.layer('topSilkscreen').lineWidth(0.1).fill(True).circle(dot1_x, dot1_y, 0.2).fill(False)
     else:
         # Standard dual: draw full rectangle
         pattern.rectangle(x1, y1, x2, y2)
     
-    if housing.get('polarized') and not housing.get('son') and not housing.get('sot23') and not housing.get('sop') and not housing.get('soic'):
+    if housing.get('polarized') and not housing.get('son') and not housing.get('sot23') and not housing.get('sop') and not housing.get('soj') and not housing.get('soic'):
         pattern.attribute('value', {'text': pattern.name, 'x': 0, 'y': 0})
         pattern.circle(xp, yp, 0)  # polarityMark abstraction skipped; use small dot if needed
 

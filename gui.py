@@ -234,23 +234,42 @@ class App(tk.Tk):
                 ('Height max', 'height.max', 2.9),
             ]
         elif kind in ('sopfl','sotfl','soj','sol','sot143','sot89_5'):
-            base = [
-                # For SOTFL allow selecting component type (IC or Transistor)
-                *([('Component type', 'componentType', 'ICSOFL')] if kind == 'sotfl' else []),
-                ('Lead count', 'leadCount', 3 if kind == 'sotfl' else 8),
-                ('Pitch', 'pitch', 0.5 if kind == 'sotfl' else 1.27),
-            ] + rng('Lead span', 'leadSpan.nom','leadSpan.min','leadSpan.max') + [
-                ('Lead length min', 'leadLength.min', 0.4),
-                ('Lead length max', 'leadLength.max', 0.6),
-                ('Lead width min', 'leadWidth.min', 0.3),
-                ('Lead width max', 'leadWidth.max', 0.5),
-                ('Body width nom', 'bodyWidth.nom', 3.9),
-                ('Body width min', 'bodyWidth.min', 3.7),
-                ('Body width max', 'bodyWidth.max', 4.1),
-                ('Body length nom', 'bodyLength.nom', 4.9),
-                ('Body length min', 'bodyLength.min', 4.7),
-                ('Body length max', 'bodyLength.max', 5.1),
-                ('Height max', 'height.max', 1.75),
+            if kind == 'sotfl':
+                base = [
+                    ('Component type', 'componentType', 'ICSOFL'),
+                    ('Lead count', 'leadCount', 3),
+                    ('Pitch', 'pitch', 0.95),
+                    ('Lead span nom', 'leadSpan.nom', 2.4),
+                    ('Lead span min', 'leadSpan.min', 2.3),
+                    ('Lead span max', 'leadSpan.max', 2.5),
+                ]
+            elif kind == 'soj':
+                base = [
+                    ('Lead count', 'leadCount', 6),
+                    ('Pitch', 'pitch', 1.1),
+                    ('Lead span nom', 'leadSpan.nom', 3.45),
+                    ('Lead span min', 'leadSpan.min', 3.25),
+                    ('Lead span max', 'leadSpan.max', 3.65),
+                ]
+            else:
+                base = [
+                    ('Lead count', 'leadCount', 8),
+                    ('Pitch', 'pitch', 1.27),
+                ] + rng('Lead span', 'leadSpan.nom','leadSpan.min','leadSpan.max')
+            base += [
+                ('Lead length min', 'leadLength.min', 0.4 if kind == 'soj' else (0.3 if kind == 'sotfl' else 0.4)),
+                ('Lead length nom', 'leadLength.nom', 0.7 if kind == 'soj' else (0.4 if kind == 'sotfl' else 0.5)),
+                ('Lead length max', 'leadLength.max', 0.9 if kind == 'soj' else (0.5 if kind == 'sotfl' else 0.6)),
+                ('Lead width min', 'leadWidth.min', 0.4 if kind == 'soj' else (0.37 if kind == 'sotfl' else 0.3)),
+                ('Lead width nom', 'leadWidth.nom', 0.5 if kind == 'soj' else (0.44 if kind == 'sotfl' else 0.4)),
+                ('Lead width max', 'leadWidth.max', 0.6 if kind == 'soj' else 0.5),
+                ('Body width nom', 'bodyWidth.nom', 3.1 if kind == 'soj' else (1.8 if kind == 'sotfl' else 3.9)),
+                ('Body width min', 'bodyWidth.min', 2.9 if kind == 'soj' else (1.7 if kind == 'sotfl' else 3.7)),
+                ('Body width max', 'bodyWidth.max', 3.3 if kind == 'soj' else (1.9 if kind == 'sotfl' else 4.1)),
+                ('Body length nom', 'bodyLength.nom', 3.3 if kind == 'soj' else (2.9 if kind == 'sotfl' else 4.9)),
+                ('Body length min', 'bodyLength.min', 3.1 if kind == 'soj' else (2.7 if kind == 'sotfl' else 4.7)),
+                ('Body length max', 'bodyLength.max', 3.5 if kind == 'soj' else (3.1 if kind == 'sotfl' else 5.1)),
+                ('Height max', 'height.max', 2.24 if kind == 'soj' else (0.88 if kind == 'sotfl' else 1.75)),
             ]
             if kind in ('sot223','sot143','sot89_5'):
                 # additional fields for SOT223 family and pak tab variant
@@ -582,13 +601,6 @@ class App(tk.Tk):
                 ent = ttk.Combobox(self.fields_frame, textvariable=var, values=[3, 5, 6], state='readonly')
                 try:
                     ent.set(3)
-                except Exception:
-                    pass
-            elif current_kind == 'sotfl' and path == 'pitch':
-                # Fixed pitch 0.5mm; render read-only combobox to show fixed value
-                ent = ttk.Combobox(self.fields_frame, textvariable=var, values=[0.5], state='readonly')
-                try:
-                    ent.set(0.5)
                 except Exception:
                     pass
             elif current_kind == 'oscillator' and path == 'variant':
