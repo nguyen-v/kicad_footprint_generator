@@ -864,17 +864,59 @@ def two_pin(pattern, housing):
             y = l / 2 + lw / 2
             preamble(pattern, housing)
             if housing.get('cae') and not housing.get('nosilk'):
-                d = x2 - x1
-                pattern.moveTo(-x1, -y).lineTo(-x2, -y + d).lineTo(-x2, y).lineTo(-x1, y)
-                pattern.moveTo(x1, -y).lineTo(x2, -y + d).lineTo(x2, y).lineTo(x1, y)
+                # CAE silkscreen: split into top and bottom patterns, avoiding pads
+                s = pattern.settings
+                lw = s['lineWidth']['silkscreen']
+                silk_pad_clearance = s['clearance']['silkToPad']
+                
+                bw = housing['bodyWidth']['nom']
+                bl = housing['bodyLength']['nom']
+                
+                # Use custom chamfer if provided, otherwise use default
+                custom_chamfer = housing.get('chamfer')
+                if custom_chamfer and str(custom_chamfer).strip():
+                    try:
+                        d = float(custom_chamfer)
+                    except (ValueError, TypeError):
+                        d = min(bw / 4, bl / 4)  # Fallback to default
+                else:
+                    d = min(bw / 4, bl / 4)  # Default chamfer size
+                
+                # Add 0.06mm to perimeter (0.06mm on each side)
+                x_silk = bw / 2 + 0.06
+                y_silk = bl / 2 + 0.06
+                d_silk = d + 0.06  # Also add to chamfer
+                
+                # Get pad positions to avoid them
+                pads = list(pattern.pads.values())
+                pad1 = pads[0]  # Left pad
+                pad2 = pads[1]  # Right pad
+                
+                # Calculate pad boundaries with clearance (including silkscreen line width)
+                pad_clearance = silk_pad_clearance + lw / 2  # Total clearance including line width
+                pad1_bottom = pad1.y + pad1.height / 2 + pad_clearance
+                pad1_top = pad1.y - pad1.height / 2 - pad_clearance
+                pad2_bottom = pad2.y + pad2.height / 2 + pad_clearance
+                pad2_top = pad2.y - pad2.height / 2 - pad_clearance
+                
+                # Top pattern: chamfered top with vertical lines avoiding pads
+                # Top horizontal line with chamfer
+                pattern.moveTo(-x_silk, pad1_top).lineTo(-x_silk, -y_silk + d_silk).lineTo(-x_silk + d_silk, -y_silk).lineTo(x_silk, -y_silk).lineTo(x_silk, pad2_top)
+                
+                
+                # Bottom pattern: chamfered bottom with vertical lines avoiding pads
+                # Bottom horizontal line with chamfer
+                pattern.moveTo(-x_silk, pad1_bottom).lineTo(-x_silk, y_silk - d_silk).lineTo(-x_silk + d_silk, y_silk).lineTo(x_silk, y_silk).lineTo(x_silk, pad2_bottom)
+                
+                # Add pin 1 indicator dot to the left of pin1
+                if housing.get('polarized'):
+                    dot_x = pad1.x - pad1.width / 2 - 0.4 - 0.1  # 0.2mm clearance + 0.1mm spacing
+                    dot_y = pad1.y
+                    pattern.layer('topSilkscreen').lineWidth(0.1).fill(True).circle(dot_x, dot_y, 0.2).fill(False)
             elif not housing.get('nosilk'):
                 pattern.line(-x, -y, -x, y).line(x, -y, x, y)
                 if x1 < x2:  # Molded
                     pattern.line(-x1, -y, -x2, -y).line(-x1, y, -x2, y).line(x1, -y, x2, -y).line(x1, y, x2, y)
-            if housing.get('polarized') or housing.get('cae'):
-                y2 = first_pad.y - first_pad.height / 2 - gap
-                pattern.moveTo(-x1, -y).lineTo(-x1, y2).lineTo(x1, y2).lineTo(x1, -y)
-                pattern.circle(0, y2 - 1.5 * lw, 0)
     elif 'bodyDiameter' in housing:
         r = housing['bodyDiameter']['nom'] / 2 + lw / 2
         preamble(pattern, housing)

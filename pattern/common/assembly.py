@@ -728,11 +728,36 @@ def two_pin(pattern, housing):
             x = bw / 2
             y = bl / 2
             if housing.get('cae'):
-                d = min(bw / 4, bl / 4)
+                # Use custom chamfer if provided, otherwise use default
+                custom_chamfer = housing.get('chamfer')
+                if custom_chamfer and str(custom_chamfer).strip():
+                    try:
+                        d = float(custom_chamfer)
+                    except (ValueError, TypeError):
+                        d = min(bw / 4, bl / 4)  # Fallback to default
+                else:
+                    d = min(bw / 4, bl / 4)  # Default chamfer size
+                
                 diam = housing.get('bodyDiameter', {}).get('nom', housing.get('bodyDiameter'))
-                pattern.moveTo(-x + d, -y).lineTo(-x, -y + d).lineTo(-x, y).lineTo(x, y).lineTo(x, -y + d).lineTo(x - d, -y).lineTo(-x + d, -y)
+                # Rotate 90° CCW: chamfer should be on the left, not the top
+                # Left side: chamfer at top-left
+                pattern.moveTo(-x, -y + d).lineTo(-x + d, -y).lineTo(x, -y).lineTo(x, y).lineTo(-x + d, y).lineTo(-x, y - d).lineTo(-x, -y + d)
                 if diam is not None:
                     pattern.circle(0, 0, diam / 2)
+                
+                # Add "+" symbol below pad 1
+                # Get pad 1 position (left pad)
+                pads = list(pattern.pads.values())
+                if len(pads) >= 1:
+                    pad1 = pads[0]  # Left pad
+                    plus_size = 0.7 / 2  # Half of 0.7mm line length
+                    plus_y = pad1.y - pad1.height / 2 - 0.5  # Position below pad1 with 0.5mm spacing
+                    plus_x = pad1.x  # Centered on pad1
+                    
+                    # Draw horizontal line of "+"
+                    pattern.line(plus_x - plus_size, plus_y, plus_x + plus_size, plus_y)
+                    # Draw vertical line of "+"
+                    pattern.line(plus_x, plus_y - plus_size, plus_x, plus_y + plus_size)
             elif housing.get('polarized'):
                 d = min(1, bw / 2, bl / 2)
                 pattern.moveTo(-x + d, -y).lineTo(x, -y).lineTo(x, y).lineTo(-x, y).lineTo(-x, -y + d).lineTo(-x + d, -y)

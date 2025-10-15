@@ -870,15 +870,18 @@ def two_pin(pattern: dict, housing: dict, option: str = 'chip') -> dict:
         courtyard = None
     elif option == 'crystal':
         height = _get_height(housing)
-        if height >= 10:
+        if height > 10:
+            # Height > 10mm
             toes = {'M': 1.0, 'N': 0.7, 'L': 0.4}
-            heels = {'M': 0.0, 'N': -0.05, 'L': -0.1}
+            heels = {'M': 0.1, 'N': 0.0, 'L': 0.0}
             sides = {'M': 0.6, 'N': 0.5, 'L': 0.4}
+            courtyard = {'M': 0.8, 'N': 0.4, 'L': 0.2}[settings['densityLevel']]
         else:
+            # Height <= 10mm
             toes = {'M': 0.7, 'N': 0.5, 'L': 0.3}
-            heels = {'M': 0.0, 'N': -0.1, 'L': -0.2}
+            heels = {'M': 0.05, 'N': 0.0, 'L': 0.0}
             sides = {'M': 0.5, 'N': 0.4, 'L': 0.3}
-        courtyard = {'M': 1, 'N': 0.5, 'L': 0.25}[settings['densityLevel']]
+            courtyard = {'M': 0.4, 'N': 0.2, 'L': 0.1}[settings['densityLevel']]
         # Round-off per IPC Table 3-20
         pattern['sizeRoundoff'] = 0.05
     elif option == 'dfn':
@@ -979,13 +982,29 @@ def two_pin(pattern: dict, housing: dict, option: str = 'chip') -> dict:
     params['Js'] = pattern.get('side', side)
     params['Lmin'] = housing['leadSpan']['min']
     params['Lmax'] = housing['leadSpan']['max']
-    print(f"params: {params}")
+    
+    # Debug output for CAE components
+    if option == 'crystal':
+        print(f"=== CAE DEBUG ===")
+        print(f"leadSpan: {housing.get('leadSpan')}")
+        print(f"leadLength: {housing.get('leadLength')}")
+        print(f"leadWidth: {housing.get('leadWidth')}")
+        print(f"height: {housing.get('height')}")
+        print(f"densityLevel: {settings['densityLevel']}")
+        print(f"toe/heel/side: {toe}/{heel}/{side}")
+        print(f"params: {params}")
+    
     ipc = _ipc7351(params)
-    print(f"ipc: {ipc}")
+    
+    if option == 'crystal':
+        print(f"ipc: {ipc}")
     ipc['clearance'] = settings['clearance']['padToPad']
     pad = _pad(ipc, pattern)
     pad['courtyard'] = courtyard if 'courtyard' in locals() and courtyard is not None else params['courtyard']
     pad = _choose_preferred(pad, pattern, housing)
+    
+    if option == 'crystal':
+        print(f"final pad: {pad}")
     lead_to_pad = (pad['distance'] + pad['width'] - housing['leadSpan']['nom']) / 2
     if lead_to_pad < settings['minimum']['spaceForIron']:
         d = settings['minimum']['spaceForIron'] - lead_to_pad

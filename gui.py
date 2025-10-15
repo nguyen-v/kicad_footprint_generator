@@ -505,12 +505,14 @@ class App(tk.Tk):
             # Aluminium Electrolytic Capacitor (CAPAE) uses the crystal IPC table
             # Lead span is computed from lead length and lead space; do not expose lead span.
             return (
-                rng('Lead length', 'leadLength.nom','leadLength.min','leadLength.max') +
-                rng('Lead width', 'leadWidth.nom','leadWidth.min','leadWidth.max') +
-                rng('Lead space', 'leadSpace.nom','leadSpace.min','leadSpace.max') +
-                rng('Body width', 'bodyWidth.nom','bodyWidth.min','bodyWidth.max') +
-                rng('Body length', 'bodyLength.nom','bodyLength.min','bodyLength.max') + [
-                    ('Height max', 'height.max', 5.4),
+                [('Lead length nom', 'leadLength.nom', 3.4), ('Lead length min', 'leadLength.min', 3.3), ('Lead length max', 'leadLength.max', 3.5)] +
+                [('Lead width nom', 'leadWidth.nom', 1.2), ('Lead width min', 'leadWidth.min', 1.0), ('Lead width max', 'leadWidth.max', 1.4)] +
+                [('Lead space', 'leadSpace.nom', 4.6)] +
+                [('Body width nom', 'bodyWidth.nom', 10.3), ('Body width min', 'bodyWidth.min', 10.1), ('Body width max', 'bodyWidth.max', 10.5)] +
+                [('Body length nom', 'bodyLength.nom', 10.3), ('Body length min', 'bodyLength.min', 10.1), ('Body length max', 'bodyLength.max', 10.5)] + [
+                    ('Height max', 'height.max', 10.8),
+                    ('Diameter', 'bodyDiameter.nom', 10),
+                    ('Chamfer', 'chamfer', ''),
                 ]
             )
         if kind in ('chip','crystal','molded','sod','sodfl'):
